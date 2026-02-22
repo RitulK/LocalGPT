@@ -164,7 +164,7 @@ function App() {
                 <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
                   LocalGPT
                 </h1>
-                <p className="text-xs text-slate-400">Control Center</p>
+                <p className="text-xs text-slate-400">your offline AI buddy</p>
               </div>
             </div>
 
