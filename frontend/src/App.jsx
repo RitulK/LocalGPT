@@ -20,7 +20,6 @@ function App() {
     router_enabled: true
   });
   const [activeTab, setActiveTab] = useState('chat'); // chat, settings, models
-  const [darkMode, setDarkMode] = useState(true);
   const [ollamaStatus, setOllamaStatus] = useState('checking');
 
   const currentConversation = conversations.find(c => c.id === currentConversationId);
@@ -132,7 +131,7 @@ function App() {
   };
 
   return (
-    <div className={`flex h-screen overflow-hidden ${darkMode ? 'dark' : ''}`}>
+    <div className="flex h-screen overflow-hidden">
       <div className="flex w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-gray-100 overflow-hidden">
         {/* Sidebar */}
         <Sidebar
@@ -179,12 +178,6 @@ function App() {
                    ollamaStatus === 'checking' ? 'Checking...' : 'Offline'}
                 </span>
               </div>
-              <button
-                onClick={() => setDarkMode(!darkMode)}
-                className="p-2 rounded-xl hover:bg-slate-800/50 transition-all duration-300 border border-transparent hover:border-slate-700/50"
-              >
-                {darkMode ? '🌙' : '☀️'}
-              </button>
             </div>
           </div>
 

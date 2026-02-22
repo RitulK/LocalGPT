@@ -66,9 +66,9 @@ export default function ModelManagement({ models, onRefresh, selectedModel }) {
               </div>
               <div>
                 <div className="text-2xl font-bold text-gray-100">
-                  {models.length > 0 ? '1' : '0'}
+                  {models.length}
                 </div>
-                <div className="text-sm text-gray-400">Active Model</div>
+                <div className="text-sm text-gray-400">Available Models</div>
               </div>
             </div>
           </div>
@@ -109,14 +109,13 @@ export default function ModelManagement({ models, onRefresh, selectedModel }) {
         ) : (
           <div className="space-y-3">
             {models.map((model) => {
-              const isActive = selectedModel === model.name || 
-                             (selectedModel === 'auto' && models.indexOf(model) === 0);
+              const isSelected = selectedModel === model.name;
               
               return (
                 <div
                   key={model.name}
                   className={`bg-gray-800 rounded-lg p-5 border transition ${
-                    isActive
+                    isSelected
                       ? 'border-blue-500 bg-blue-900/10'
                       : 'border-gray-700 hover:border-gray-600'
                   }`}
@@ -127,9 +126,9 @@ export default function ModelManagement({ models, onRefresh, selectedModel }) {
                         <h3 className="text-lg font-semibold text-gray-100">
                           {model.name}
                         </h3>
-                        {isActive && (
+                        {isSelected && (
                           <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full font-medium">
-                            Active
+                            Selected
                           </span>
                         )}
                       </div>
