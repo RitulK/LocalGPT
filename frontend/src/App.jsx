@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatWindow from './components/ChatWindow';
-import SettingsPanel from './components/SettingsPanel';
 import ModelManagement from './components/ModelManagement';
-import { Bot, Settings, Database } from 'lucide-react';
+import { Bot, Menu, X } from 'lucide-react';
 
 function App() {
   const [conversations, setConversations] = useState([
@@ -13,13 +12,8 @@ function App() {
   const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('auto');
   const [useRouter, setUseRouter] = useState(true);
-  const [settings, setSettings] = useState({
-    default_general_model: 'qwen:4b',
-    default_coding_model: 'qwen:4b',
-    default_reasoning_model: 'qwen:4b',
-    router_enabled: true
-  });
-  const [activeTab, setActiveTab] = useState('chat'); // chat, settings, models
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState('chat'); // chat, models
   const [ollamaStatus, setOllamaStatus] = useState('checking');
 
   const currentConversation = conversations.find(c => c.id === currentConversationId);
@@ -134,41 +128,56 @@ function App() {
     <div className="flex h-screen overflow-hidden">
       <div className="flex w-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-gray-100 overflow-hidden">
         {/* Sidebar */}
-        <Sidebar
-          conversations={conversations}
-          currentConversationId={currentConversationId}
-          onSelectConversation={setCurrentConversationId}
-          onNewConversation={createNewConversation}
-          onDeleteConversation={deleteConversation}
-          models={models}
-          selectedModel={selectedModel}
-          onSelectModel={setSelectedModel}
-          useRouter={useRouter}
-          onToggleRouter={setUseRouter}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          ollamaStatus={ollamaStatus}
-          onRefresh={checkOllamaHealth}
-        />
+        {sidebarOpen && (
+          <Sidebar
+            conversations={conversations}
+            currentConversationId={currentConversationId}
+            onSelectConversation={setCurrentConversationId}
+            onNewConversation={createNewConversation}
+            onDeleteConversation={deleteConversation}
+            models={models}
+            selectedModel={selectedModel}
+            onSelectModel={setSelectedModel}
+            useRouter={useRouter}
+            onToggleRouter={setUseRouter}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            ollamaStatus={ollamaStatus}
+            onRefresh={checkOllamaHealth}
+          />
+        )}
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden w-full">
           {/* Header */}
-          <div className="bg-slate-900/50 backdrop-blur-xl border-b border-slate-700/50 px-6 py-4 flex items-center justify-between flex-shrink-0 shadow-lg">
+          <div className="bg-white/10 backdrop-blur-2xl border-b border-white/20 px-6 py-4 flex items-center justify-between flex-shrink-0 shadow-lg w-full" style={{
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          }}>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="w-10 h-10 -ml-2 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors text-slate-300 hover:text-white"
+                title={sidebarOpen ? "Hide Sidebar" : "Show Sidebar"}
+              >
+                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
               <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/30">
                 <Bot className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
                   LocalGPT
                 </h1>
-                <p className="text-xs text-slate-400">your offline AI buddy</p>
+                <p className="text-xs text-slate-300">your offline AI buddy</p>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/50 border border-slate-700/50">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20" style={{
+                backdropFilter: 'blur(20px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              }}>
                 <div className={`w-2 h-2 rounded-full ${
                   ollamaStatus === 'running' ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50 animate-pulse' : 
                   ollamaStatus === 'checking' ? 'bg-amber-500 shadow-lg shadow-amber-500/50 animate-pulse' : 'bg-rose-500'
@@ -191,14 +200,8 @@ function App() {
               selectedModel={selectedModel}
               useRouter={useRouter}
               models={models}
-            />
-          )}
-
-          {activeTab === 'settings' && (
-            <SettingsPanel
-              settings={settings}
-              onUpdateSettings={setSettings}
-              models={models}
+              onSelectModel={setSelectedModel}
+              onToggleRouter={setUseRouter}
             />
           )}
 

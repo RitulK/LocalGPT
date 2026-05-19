@@ -1,13 +1,15 @@
 import httpx
 import json
+import os
 from typing import List, Dict, AsyncIterator
 
 
 class OllamaClient:
     """Client for interacting with Ollama API"""
     
-    def __init__(self, base_url: str = "http://localhost:11434"):
-        self.base_url = base_url
+    def __init__(self, base_url: str = None):
+        # Use environment variable if set (for Docker), otherwise default to localhost
+        self.base_url = base_url or os.getenv("OLLAMA_HOST", "http://localhost:11434")
         self.timeout = httpx.Timeout(300.0, connect=5.0)
     
     async def get_models(self) -> List[Dict]:
@@ -71,7 +73,14 @@ class OllamaClient:
                                 continue
             
             except httpx.HTTPStatusError as e:
-                raise Exception(f"Ollama API error: {e.response.status_code} - {e.response.text}")
+                # Can't access .text on streaming responses without reading first
+                error_msg = f"HTTP {e.response.status_code}"
+                try:
+                    error_detail = await e.response.aread()
+                    error_msg += f" - {error_detail.decode('utf-8')}"
+                except:
+                    pass
+                raise Exception(f"Ollama API error: {error_msg}")
             except httpx.ConnectError:
                 raise Exception("Cannot connect to Ollama. Make sure Ollama is running.")
             except Exception as e:
@@ -105,7 +114,13 @@ class OllamaClient:
                 return data.get("message", {}).get("content", "")
             
             except httpx.HTTPStatusError as e:
-                raise Exception(f"Ollama API error: {e.response.status_code} - {e.response.text}")
+                # For non-streaming responses, .text is accessible
+                error_msg = f"HTTP {e.response.status_code}"
+                try:
+                    error_msg += f" - {e.response.text}"
+                except:
+                    pass
+                raise Exception(f"Ollama API error: {error_msg}")
             except httpx.ConnectError:
                 raise Exception("Cannot connect to Ollama. Make sure Ollama is running.")
             except Exception as e:

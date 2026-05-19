@@ -25,7 +25,7 @@ export default function ModelManagement({ models, onRefresh, selectedModel }) {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-8 bg-gray-900">
+    <div className="flex-1 overflow-y-auto p-8 bg-gradient-to-br from-slate-950/50 to-slate-900/50">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -38,7 +38,7 @@ export default function ModelManagement({ models, onRefresh, selectedModel }) {
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-slate-700 disabled:to-slate-700 text-white rounded-lg transition font-medium shadow-lg shadow-indigo-500/30 backdrop-blur-sm"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
@@ -47,10 +47,10 @@ export default function ModelManagement({ models, onRefresh, selectedModel }) {
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className="bg-white/5 backdrop-blur-md rounded-lg p-4 border border-white/10 shadow-lg">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-600/20 rounded-lg">
-                <Database className="w-5 h-5 text-blue-400" />
+              <div className="p-2 bg-indigo-600/20 rounded-lg backdrop-blur-sm">
+                <Database className="w-5 h-5 text-indigo-400" />
               </div>
               <div>
                 <div className="text-2xl font-bold text-gray-100">{models.length}</div>
@@ -59,10 +59,10 @@ export default function ModelManagement({ models, onRefresh, selectedModel }) {
             </div>
           </div>
 
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className="bg-white/5 backdrop-blur-md rounded-lg p-4 border border-white/10 shadow-lg">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-600/20 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-400" />
+              <div className="p-2 bg-emerald-600/20 rounded-lg backdrop-blur-sm">
+                <CheckCircle className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
                 <div className="text-2xl font-bold text-gray-100">
@@ -73,9 +73,9 @@ export default function ModelManagement({ models, onRefresh, selectedModel }) {
             </div>
           </div>
 
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className="bg-white/5 backdrop-blur-md rounded-lg p-4 border border-white/10 shadow-lg">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-600/20 rounded-lg">
+              <div className="p-2 bg-purple-600/20 rounded-lg backdrop-blur-sm">
                 <HardDrive className="w-5 h-5 text-purple-400" />
               </div>
               <div>
@@ -90,19 +90,19 @@ export default function ModelManagement({ models, onRefresh, selectedModel }) {
 
         {/* Models List */}
         {models.length === 0 ? (
-          <div className="bg-gray-800 rounded-lg p-12 border border-gray-700 text-center">
+          <div className="bg-white/5 backdrop-blur-md rounded-lg p-12 border border-white/10 text-center shadow-lg">
             <Database className="w-16 h-16 text-gray-600 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-300 mb-2">No Models Found</h3>
             <p className="text-gray-500 mb-4">
               No Ollama models are currently installed on your system.
             </p>
-            <div className="bg-gray-900 rounded-lg p-4 max-w-md mx-auto text-left">
+            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 max-w-md mx-auto text-left border border-white/10">
               <p className="text-sm text-gray-400 mb-2">To install a model, run:</p>
-              <code className="block bg-gray-950 text-green-400 px-3 py-2 rounded font-mono text-sm">
+              <code className="block bg-slate-950/50 text-emerald-400 px-3 py-2 rounded font-mono text-sm border border-white/5">
                 ollama pull llama3.2
               </code>
               <p className="text-xs text-gray-500 mt-2">
-                Or visit: <a href="https://ollama.com/library" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">ollama.com/library</a>
+                Or visit: <a href="https://ollama.com/library" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">ollama.com/library</a>
               </p>
             </div>
           </div>
@@ -114,10 +114,10 @@ export default function ModelManagement({ models, onRefresh, selectedModel }) {
               return (
                 <div
                   key={model.name}
-                  className={`bg-gray-800 rounded-lg p-5 border transition ${
+                  className={`bg-white/5 backdrop-blur-md rounded-lg p-5 border transition shadow-lg ${
                     isSelected
-                      ? 'border-blue-500 bg-blue-900/10'
-                      : 'border-gray-700 hover:border-gray-600'
+                      ? 'border-indigo-500/50 bg-indigo-500/10'
+                      : 'border-white/10 hover:border-white/20'
                   }`}
                 >
                   <div className="flex items-start justify-between">

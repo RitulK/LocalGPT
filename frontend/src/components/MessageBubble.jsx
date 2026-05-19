@@ -40,10 +40,10 @@ export default function MessageBubble({ message }) {
         <div
           className={`rounded-2xl px-5 py-4 shadow-lg transition-all duration-300 ${
             isUser
-              ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-indigo-500/30 hover:shadow-indigo-500/40'
+              ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-indigo-500/30 hover:shadow-indigo-500/40 backdrop-blur-sm'
               : message.error
-              ? 'bg-red-900/20 border border-red-700/50 text-red-300 backdrop-blur-sm'
-              : 'bg-slate-800/80 text-gray-100 backdrop-blur-sm border border-slate-700/50 hover:border-slate-600/50'
+              ? 'bg-red-500/10 border border-red-500/30 text-red-300 backdrop-blur-md'
+              : 'bg-white/5 text-gray-100 backdrop-blur-md border border-white/10 hover:border-white/20'
           }`}
         >
           {isUser ? (

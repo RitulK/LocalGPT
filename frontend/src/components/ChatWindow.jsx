@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import MessageBubble from './MessageBubble';
+import Aurora from './Aurora';
 import { Send, Trash2, AlertCircle } from 'lucide-react';
 
 export default function ChatWindow({
@@ -9,7 +10,9 @@ export default function ChatWindow({
   onClearChat,
   selectedModel,
   useRouter,
-  models
+  models,
+  onSelectModel,
+  onToggleRouter
 }) {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -181,28 +184,40 @@ export default function ChatWindow({
       {/* Messages Area */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-6 chat-scroll">
         {conversation.messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400">
-            <div className="w-24 h-24 mb-6 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-indigo-500/30 animate-pulse">
-              <span className="text-5xl">💬</span>
+          <div className="h-full flex flex-col items-center justify-center text-slate-400 relative">
+            {/* Aurora Background */}
+            <div className="absolute inset-0">
+              <Aurora
+                colorStops={["#7cff67","#B19EEF","#5227FF"]}
+                blend={0.5}
+                amplitude={1.0}
+                speed={1}
+              />
             </div>
-            <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">Start a Conversation</h2>
-            <p className="text-center max-w-md text-slate-400 text-base leading-relaxed">
-              Ask me anything! I'm powered by local LLMs running on your machine via Ollama.
-            </p>
-            {models.length === 0 && (
-              <div className="mt-8 p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl max-w-md backdrop-blur-sm">
-                <div className="flex items-start gap-4">
-                  <AlertCircle className="w-6 h-6 text-amber-400 flex-shrink-0 mt-1" />
-                  <div className="text-sm">
-                    <p className="font-semibold text-amber-300 mb-2 text-base">No models found</p>
-                    <p className="text-slate-400 leading-relaxed">
-                      Make sure Ollama is running and you have models installed.
-                      Run: <code className="bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-700/50 text-amber-400 font-mono text-xs">ollama pull llama3.2</code>
-                    </p>
+
+            {/* Content */}
+            <div className="relative z-10 text-center">
+              <h1 className="text-8xl font-bold mb-8 text-white drop-shadow-2xl">
+                Hello
+              </h1>
+              <p className="text-xl text-white/90 max-w-2xl leading-relaxed drop-shadow-lg">
+                Ask me anything! I'm powered by local LLMs running on your machine via Ollama.
+              </p>
+              {models.length === 0 && (
+                <div className="mt-12 p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl max-w-md mx-auto backdrop-blur-md">
+                  <div className="flex items-start gap-4">
+                    <AlertCircle className="w-6 h-6 text-amber-400 flex-shrink-0 mt-1" />
+                    <div className="text-sm">
+                      <p className="font-semibold text-amber-300 mb-2 text-base">No models found</p>
+                      <p className="text-slate-400 leading-relaxed">
+                        Make sure Ollama is running and you have models installed.
+                        Run: <code className="bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-700/50 text-amber-400 font-mono text-xs">ollama pull llama3.2</code>
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         ) : (
           <div className="max-w-4xl mx-auto space-y-6">
@@ -219,9 +234,9 @@ export default function ChatWindow({
 
       {/* Error Display */}
       {error && (
-        <div className="px-6 py-4 bg-red-500/10 border-t border-red-500/30 backdrop-blur-sm">
+        <div className="px-6 py-4 bg-red-500/5 border-t border-red-500/20 backdrop-blur-xl">
           <div className="max-w-4xl mx-auto flex items-center gap-3 text-red-400 text-sm">
-            <div className="p-2 rounded-xl bg-red-500/20">
+            <div className="p-2 rounded-xl bg-red-500/10 backdrop-blur-sm border border-red-500/20">
               <AlertCircle className="w-5 h-5" />
             </div>
             <span className="font-medium">{error}</span>
@@ -230,9 +245,36 @@ export default function ChatWindow({
       )}
 
       {/* Input Area */}
-      <div className="border-t border-slate-700/50 bg-slate-900/50 backdrop-blur-xl px-6 py-6 shadow-2xl">
+      <div className="border-t border-white/10 bg-slate-900/30 backdrop-blur-xl px-6 py-6 shadow-2xl">
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSubmit} className="flex gap-3 items-end">
+            {/* Model Selector Dropdown */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium text-slate-300">Model</label>
+              <select
+                value={selectedModel}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  onSelectModel(value);
+                  onToggleRouter(value === 'auto');
+                }}
+                disabled={isStreaming}
+                className="bg-white/10 text-slate-100 rounded-xl px-3 py-2 text-sm border border-white/20 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-300 backdrop-blur-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                style={{
+                  backdropFilter: 'blur(20px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                }}
+              >
+                <option value="auto">🤖 Auto</option>
+                <option disabled>─────</option>
+                {models.map((model) => (
+                  <option key={model.name} value={model.name}>
+                    {model.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex-1">
               <textarea
                 ref={textareaRef}
@@ -240,7 +282,7 @@ export default function ChatWindow({
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={`Ask anything${selectedModel !== 'auto' ? ` (${selectedModel})` : ''}...`}
-                className="w-full bg-slate-800/80 text-slate-100 placeholder-slate-500 rounded-2xl px-5 py-4 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-300 max-h-40 border border-slate-700/50 backdrop-blur-sm"
+                className="w-full bg-white/5 text-slate-100 placeholder-slate-400 rounded-2xl px-5 py-4 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-300 max-h-40 border border-white/10 backdrop-blur-md shadow-lg"
                 rows="1"
                 disabled={isStreaming}
               />
@@ -248,7 +290,7 @@ export default function ChatWindow({
             <button
               type="submit"
               disabled={!input.trim() || isStreaming || models.length === 0}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white rounded-2xl px-5 py-4 transition-all duration-300 flex items-center gap-2 font-medium shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 disabled:hover:scale-100 disabled:shadow-none"
+              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white rounded-2xl px-5 py-4 transition-all duration-300 flex items-center gap-2 font-medium shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 disabled:hover:scale-100 disabled:shadow-none backdrop-blur-sm"
             >
               <Send className="w-5 h-5" />
               {isStreaming ? 'Sending...' : 'Send'}
@@ -258,16 +300,16 @@ export default function ChatWindow({
                 type="button"
                 onClick={onClearChat}
                 disabled={isStreaming}
-                className="bg-slate-800/80 hover:bg-slate-700/80 disabled:bg-slate-800/50 disabled:cursor-not-allowed text-slate-300 hover:text-red-400 rounded-2xl px-5 py-4 transition-all duration-300 border border-slate-700/50 hover:border-red-500/50"
+                className="bg-white/5 hover:bg-white/10 disabled:bg-white/5 disabled:cursor-not-allowed text-slate-300 hover:text-red-400 rounded-2xl px-5 py-4 transition-all duration-300 border border-white/10 hover:border-red-500/50 backdrop-blur-md"
                 title="Clear chat"
               >
                 <Trash2 className="w-5 h-5" />
               </button>
             )}
           </form>
-          <div className="mt-3 text-xs text-slate-500 flex items-center justify-between">
+          <div className="mt-3 text-xs text-slate-400 flex items-center justify-between">
             <span>
-              Press <kbd className="px-2 py-0.5 bg-slate-800/50 border border-slate-700/50 rounded text-slate-400">Enter</kbd> to send, <kbd className="px-2 py-0.5 bg-slate-800/50 border border-slate-700/50 rounded text-slate-400">Shift + Enter</kbd> for new line
+              Press <kbd className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-slate-300 backdrop-blur-sm">Enter</kbd> to send, <kbd className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-slate-300 backdrop-blur-sm">Shift + Enter</kbd> for new line
             </span>
             {useRouter && (
               <span className="flex items-center gap-1.5 text-emerald-400 font-medium">

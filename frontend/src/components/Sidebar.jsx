@@ -1,4 +1,4 @@
-import { MessageSquare, Plus, Trash2, MessageCircle, Settings, Database } from 'lucide-react';
+import { MessageSquare, Plus, Trash2, MessageCircle, Database } from 'lucide-react';
 
 export default function Sidebar({
   conversations,
@@ -17,15 +17,19 @@ export default function Sidebar({
   onRefresh
 }) {
   return (
-    <div className="w-80 bg-slate-900/50 backdrop-blur-xl border-r border-slate-700/50 flex flex-col shadow-2xl">
+    <div className="w-80 bg-white/5 border-r border-white/15 flex flex-col shadow-lg backdrop-blur-sm" style={{
+      background: 'rgba(15, 23, 42, 0.8)',
+      backdropFilter: 'blur(20px) saturate(150%)',
+      WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+    }}>
       {/* Tab Navigation */}
-      <div className="flex border-b border-slate-700/50">
+      <div className="flex border-b border-white/15">
         <button
           onClick={() => onTabChange('chat')}
           className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 transition-all duration-300 ${
             activeTab === 'chat'
-              ? 'bg-gradient-to-b from-indigo-600/20 to-transparent text-indigo-400 border-b-2 border-indigo-500 shadow-lg shadow-indigo-500/10'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              ? 'bg-white/10 text-indigo-300 border-b-2 border-indigo-400 shadow-lg shadow-indigo-500/20'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
           }`}
         >
           <MessageCircle className="w-4 h-4" />
@@ -35,56 +39,36 @@ export default function Sidebar({
           onClick={() => onTabChange('models')}
           className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 transition-all duration-300 ${
             activeTab === 'models'
-              ? 'bg-gradient-to-b from-indigo-600/20 to-transparent text-indigo-400 border-b-2 border-indigo-500 shadow-lg shadow-indigo-500/10'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              ? 'bg-white/10 text-indigo-300 border-b-2 border-indigo-400 shadow-lg shadow-indigo-500/20'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
           }`}
         >
           <Database className="w-4 h-4" />
           <span className="text-sm font-medium">Models</span>
         </button>
-        <button
-          onClick={() => onTabChange('settings')}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 transition-all duration-300 ${
-            activeTab === 'settings'
-              ? 'bg-gradient-to-b from-indigo-600/20 to-transparent text-indigo-400 border-b-2 border-indigo-500 shadow-lg shadow-indigo-500/10'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-          }`}
-        >
-          <Settings className="w-4 h-4" />
-          <span className="text-sm font-medium">Settings</span>
-        </button>
       </div>
 
-      {/* Model Selector */}
-      <div className="p-4 border-b border-slate-700/50 bg-slate-900/30">
-        <label className="block text-sm font-medium text-slate-200 mb-2">
-          Model Selection
-        </label>
-        <select
-          value={selectedModel}
-          onChange={(e) => {
-            const value = e.target.value;
-            onSelectModel(value);
-            onToggleRouter(value === 'auto');
-          }}
-          className="w-full bg-slate-800/80 text-slate-100 rounded-xl px-4 py-3 text-sm border border-slate-700/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-300 backdrop-blur-sm cursor-pointer"
-        >
-          <option value="auto">🤖 Auto (Router Mode)</option>
-          <option disabled>──────────</option>
-          {models.map((model) => (
-            <option key={model.name} value={model.name}>
-              {model.name}
-            </option>
-          ))}
-        </select>
-        
-        {selectedModel === 'auto' && (
-          <div className="mt-3 p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
-            <p className="text-xs text-indigo-300">
-              ✨ Automatically selects the best model based on your prompt
-            </p>
+      {/* Model Selector - Minimal Info */}
+      <div className="px-4 py-3 border-b border-white/15 bg-white/5" style={{
+        backdropFilter: 'blur(10px)',
+      }}>
+        <div className="flex items-center justify-between">
+          <label className="block text-sm font-medium text-slate-300">
+            Status
+          </label>
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-white/10 border border-white/20" style={{
+            backdropFilter: 'blur(10px)',
+          }}>
+            <div className={`w-2 h-2 rounded-full ${
+              useRouter 
+                ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50 animate-pulse' 
+                : 'bg-blue-500 shadow-lg shadow-blue-500/50 animate-pulse'
+            }`} />
+            <span className="text-xs font-medium text-slate-300">
+              {useRouter ? 'Router' : 'Custom'}
+            </span>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Conversations List */}
@@ -94,8 +78,11 @@ export default function Sidebar({
             <h2 className="text-sm font-semibold text-slate-200">Conversations</h2>
             <button
               onClick={onNewConversation}
-              className="p-2 rounded-xl hover:bg-indigo-600/20 transition-all duration-300 text-slate-400 hover:text-indigo-400 border border-transparent hover:border-indigo-500/30"
+              className="p-2 rounded-lg hover:bg-white/10 transition-all duration-300 text-slate-400 hover:text-indigo-300 border border-transparent hover:border-indigo-400/40"
               title="New Conversation"
+              style={{
+                backdropFilter: 'blur(10px)',
+              }}
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -105,12 +92,15 @@ export default function Sidebar({
             {conversations.map((conv) => (
               <div
                 key={conv.id}
-                className={`group relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-300 border ${
+                className={`group relative flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-300 border ${
                   conv.id === currentConversationId
-                    ? 'bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border-indigo-500/50 shadow-lg shadow-indigo-500/10 text-slate-100'
-                    : 'bg-slate-800/40 border-slate-700/30 hover:bg-slate-800/70 hover:border-slate-600/50 text-slate-400 hover:text-slate-200'
+                    ? 'bg-white/15 border-indigo-400/50 shadow-lg shadow-indigo-500/10 text-slate-100'
+                    : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/30 text-slate-400 hover:text-slate-200'
                 }`}
                 onClick={() => onSelectConversation(conv.id)}
+                style={{
+                  backdropFilter: 'blur(10px)',
+                }}
               >
                 <MessageSquare className="w-4 h-4 flex-shrink-0" />
                 <span className="flex-1 text-sm truncate">{conv.title}</span>
@@ -120,7 +110,7 @@ export default function Sidebar({
                       e.stopPropagation();
                       onDeleteConversation(conv.id);
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-500/20 transition-all duration-300 text-slate-400 hover:text-red-400"
+                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-red-500/20 transition-all duration-300 text-slate-400 hover:text-red-400"
                     title="Delete Conversation"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -133,7 +123,9 @@ export default function Sidebar({
       </div>
 
       {/* Footer Info */}
-      <div className="p-4 border-t border-slate-700/50 text-xs text-slate-400 bg-slate-900/30">
+      <div className="p-4 border-t border-white/15 text-xs text-slate-400 bg-white/5" style={{
+        backdropFilter: 'blur(10px)',
+      }}>
         <div className="flex items-center justify-between mb-2">
           <span className="font-medium">Models: <span className="text-indigo-400">{models.length}</span></span>
           <button
