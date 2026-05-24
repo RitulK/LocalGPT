@@ -1,8 +1,15 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Copy, Check, User, Bot } from 'lucide-react';
+
+const normalizeMarkdownTables = (content) => (
+  content
+    .replace(/\s+\|\|\s+/g, '\n| ')
+    .replace(/(\|[^\n|]+(?:\|[^\n|]+)+\|?)\s+(\|?\s*:?-{3,}:?\s*\|)/g, '$1\n$2')
+);
 
 export default function MessageBubble({ message }) {
   const [copied, setCopied] = useState(false);
@@ -16,17 +23,17 @@ export default function MessageBubble({ message }) {
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex gap-4 ${isUser ? 'justify-end' : 'justify-start'} group animate-in fade-in slide-in-from-bottom-4 duration-500`}>
+    <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} group animate-in fade-in slide-in-from-bottom-4 duration-500`}>
       {!isUser && (
-        <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-transform duration-300">
-          <Bot className="w-5 h-5 text-white" />
+        <div className="flex-shrink-0 w-7 h-7 rounded-[7px] bg-[#10211f] border border-[#2af0dc]/15 flex items-center justify-center shadow-[0_0_18px_rgba(32,220,202,0.08)] group-hover:border-[#2af0dc]/35 transition">
+          <Bot className="w-3.5 h-3.5 text-[#78fff0]" />
         </div>
       )}
       
       <div className={`flex-1 max-w-3xl ${isUser ? 'flex flex-col items-end' : ''}`}>
         {/* Model indicator for assistant */}
         {!isUser && message.model && (
-          <div className="text-xs text-gray-500 mb-1 flex items-center gap-2">
+          <div className="text-[10px] text-[#667b76] mb-1 flex items-center gap-2">
             <span>{message.model}</span>
             {message.isStreaming && (
               <span className="flex items-center gap-1">
@@ -38,12 +45,12 @@ export default function MessageBubble({ message }) {
         )}
         
         <div
-          className={`rounded-2xl px-5 py-4 shadow-lg transition-all duration-300 ${
+          className={`rounded-[10px] px-4 py-3 shadow-lg transition-all duration-300 text-sm ${
             isUser
-              ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-indigo-500/30 hover:shadow-indigo-500/40 backdrop-blur-sm'
+              ? 'bg-[#20dcca] text-[#061d1a] shadow-[0_12px_30px_rgba(32,220,202,0.16)]'
               : message.error
-              ? 'bg-red-500/10 border border-red-500/30 text-red-300 backdrop-blur-md'
-              : 'bg-white/5 text-gray-100 backdrop-blur-md border border-white/10 hover:border-white/20'
+              ? 'bg-red-500/10 border border-red-500/30 text-red-200'
+              : 'bg-[#111c1b]/95 text-[#dfece8] border border-white/[0.06] hover:border-[#2af0dc]/15'
           }`}
         >
           {isUser ? (
@@ -51,7 +58,15 @@ export default function MessageBubble({ message }) {
           ) : (
             <div className="markdown-content prose prose-invert max-w-none">
               <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
                 components={{
+                  table({ children, ...props }) {
+                    return (
+                      <div className="markdown-table-wrap">
+                        <table {...props}>{children}</table>
+                      </div>
+                    );
+                  },
                   code({ node, inline, className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || '');
                     const codeString = String(children).replace(/\n$/, '');
@@ -60,7 +75,7 @@ export default function MessageBubble({ message }) {
                       <div className="relative group">
                         <button
                           onClick={() => copyToClipboard(codeString)}
-                          className="absolute right-2 top-2 p-2 rounded bg-gray-700 hover:bg-gray-600 transition opacity-0 group-hover:opacity-100"
+                          className="absolute right-2 top-2 p-2 rounded bg-[#132522] hover:bg-[#1a3430] transition opacity-0 group-hover:opacity-100"
                           title="Copy code"
                         >
                           {copied ? (
@@ -86,7 +101,7 @@ export default function MessageBubble({ message }) {
                   },
                 }}
               >
-                {message.content || (message.isStreaming ? '...' : '')}
+                {normalizeMarkdownTables(message.content || (message.isStreaming ? '...' : ''))}
               </ReactMarkdown>
             </div>
           )}
@@ -96,7 +111,7 @@ export default function MessageBubble({ message }) {
         {!isUser && message.content && !message.isStreaming && (
           <button
             onClick={() => copyToClipboard(message.content)}
-            className="mt-2 text-xs text-gray-500 hover:text-gray-300 flex items-center gap-1 transition"
+            className="mt-2 text-[10px] text-[#667b76] hover:text-[#8ffcf0] flex items-center gap-1 transition"
           >
             {copied ? (
               <>
@@ -113,14 +128,14 @@ export default function MessageBubble({ message }) {
         )}
 
         {/* Timestamp */}
-        <div className="text-xs text-gray-500 mt-1">
+        <div className="text-[10px] text-[#536560] mt-1">
           {message.timestamp?.toLocaleTimeString()}
         </div>
       </div>
 
       {isUser && (
-        <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-          <User className="w-5 h-5 text-white" />
+        <div className="flex-shrink-0 w-7 h-7 rounded-[7px] bg-[#14201f] border border-white/[0.06] flex items-center justify-center shadow-lg">
+          <User className="w-3.5 h-3.5 text-[#d7e6e2]" />
         </div>
       )}
     </div>

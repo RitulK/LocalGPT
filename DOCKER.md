@@ -6,6 +6,7 @@ This guide explains how to run LocalGPT using Docker.
 
 - **Docker Desktop** installed and running
 - **Docker Compose** (included with Docker Desktop)
+- **Ollama for macOS** installed and running natively at http://localhost:11434
 - At least **8GB RAM** available
 - **10GB+ disk space** for models
 
@@ -23,8 +24,8 @@ chmod +x docker-start.sh docker-stop.sh
 
 The script will:
 - ✅ Build all containers
-- ✅ Start Ollama, Backend, and Frontend
-- ✅ Download required AI models (qwen:4b, llama3.2, qwen2.5-coder)
+- ✅ Start Backend and Frontend containers
+- ✅ Verify native Ollama is reachable on your Mac
 - ✅ Display access URLs
 
 ### 2. Access the Application
@@ -65,7 +66,6 @@ docker-compose logs -f
 # Specific service
 docker-compose logs -f backend
 docker-compose logs -f frontend
-docker-compose logs -f ollama
 ```
 
 ### Stop Services
@@ -74,7 +74,7 @@ docker-compose logs -f ollama
 docker-compose down
 ```
 
-### Stop and Remove Volumes (⚠️ will delete models)
+### Stop and Remove Volumes
 
 ```bash
 docker-compose down -v
@@ -82,17 +82,16 @@ docker-compose down -v
 
 ## 📦 Service Architecture
 
-### 1. Ollama Service
-- **Container**: `localgpt-ollama`
+### 1. Native Ollama
+- **Host**: macOS app/process
 - **Port**: 11434
-- **Volume**: `ollama_data` (persistent model storage)
-- **Purpose**: Runs LLM models locally
+- **Purpose**: Runs LLM models locally with Apple Metal acceleration
 
 ### 2. Backend Service
 - **Container**: `localgpt-backend`
 - **Port**: 8000
 - **Framework**: FastAPI + Python 3.12
-- **Purpose**: API server with smart routing
+- **Purpose**: API server with smart routing; connects to `http://host.docker.internal:11434`
 
 ### 3. Frontend Service
 - **Container**: `localgpt-frontend`
@@ -102,26 +101,15 @@ docker-compose down -v
 
 ## 🎯 Download Models
 
-### Inside Docker
+Install models with native Ollama on your Mac:
 
 ```bash
-# Access Ollama container
-docker exec -it localgpt-ollama bash
-
-# Pull models
 ollama pull qwen:4b
 ollama pull llama3.2
 ollama pull qwen2.5-coder
 
 # List installed models
 ollama list
-```
-
-### From Host
-
-```bash
-docker exec localgpt-ollama ollama pull llama3.2
-docker exec localgpt-ollama ollama list
 ```
 
 ## 🔍 Troubleshooting
@@ -186,27 +174,12 @@ docker-compose down --rmi all
 curl http://localhost:11434/api/tags
 
 # From backend container
-docker exec localgpt-backend curl http://ollama:11434/api/tags
+docker exec localgpt-backend curl http://host.docker.internal:11434/api/tags
 ```
 
-## 🎮 GPU Support (NVIDIA)
+## 🎮 GPU/Metal Support
 
-If you have an NVIDIA GPU, uncomment the GPU section in `docker-compose.yml`:
-
-```yaml
-ollama:
-  deploy:
-    resources:
-      reservations:
-        devices:
-          - driver: nvidia
-            count: 1
-            capabilities: [gpu]
-```
-
-Requires:
-- NVIDIA Docker runtime installed
-- Compatible NVIDIA GPU
+On macOS, run Ollama natively instead of inside Docker. Native Ollama can use Apple Metal acceleration, while the backend/frontend still run in Docker.
 
 ## 📊 Resource Usage
 
@@ -221,7 +194,7 @@ docker-compose top
 ```
 
 ### Typical Usage
-- **Ollama**: 2-4GB RAM (with models loaded)
+- **Native Ollama**: model-dependent; smaller models use less RAM and respond faster
 - **Backend**: 100-200MB RAM
 - **Frontend**: 50-100MB RAM
 
@@ -270,17 +243,17 @@ LocalGPT/
 
 All services are on the `localgpt-network` bridge:
 
-- Backend → Ollama: `http://ollama:11434`
+- Backend → Native Ollama: `http://host.docker.internal:11434`
 - Frontend → Backend: `http://backend:8000` (internal)
 - Host → Frontend: `http://localhost:5173`
 - Host → Backend: `http://localhost:8000`
 
 ## 💡 Tips
 
-1. **First run takes time** - models need to download (several GB)
-2. **Keep Ollama running** - other services depend on it
+1. **Install models natively** - use `ollama pull <model>` on your Mac
+2. **Keep native Ollama running** - the backend depends on it
 3. **Check logs** if something fails - they're very helpful
-4. **Models persist** - stored in Docker volume, survive restarts
+4. **Models persist** - stored by native Ollama, outside Docker
 5. **Dev changes instant** - both backend and frontend hot reload
 
 ## 🆘 Common Issues
@@ -288,10 +261,10 @@ All services are on the `localgpt-network` bridge:
 | Issue | Solution |
 |-------|----------|
 | "Port already in use" | Stop conflicting service or change port |
-| "Cannot connect to Ollama" | Check if ollama container is running |
-| "Models not found" | Run `docker exec localgpt-ollama ollama pull <model>` |
+| "Cannot connect to Ollama" | Start native Ollama and check `curl http://localhost:11434/api/tags` |
+| "Models not found" | Run `ollama pull <model>` on your Mac |
 | "Frontend won't load" | Check backend is running, check CORS settings |
-| "Slow responses" | Normal for first request, models need to load |
+| "Slow responses" | Use smaller models, keep context short, and verify native Ollama is being used |
 
 ## 📝 Environment Variables
 
@@ -299,7 +272,7 @@ Set in `docker-compose.yml`:
 
 ```yaml
 environment:
-  - OLLAMA_HOST=http://ollama:11434
+  - OLLAMA_HOST=http://host.docker.internal:11434
   - VITE_API_URL=http://localhost:8000
 ```
 

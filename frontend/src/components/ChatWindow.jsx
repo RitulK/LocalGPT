@@ -1,7 +1,41 @@
 import { useState, useRef, useEffect } from 'react';
-import MessageBubble from './MessageBubble';
 import Aurora from './Aurora';
-import { Send, Trash2, AlertCircle } from 'lucide-react';
+import MessageBubble from './MessageBubble';
+import {
+  AlertCircle,
+  ArrowUp,
+  Bot,
+  Brain,
+  Check,
+  ChevronDown,
+  Code2,
+  Cpu,
+  FileText,
+  Route,
+  Send,
+  Sparkles,
+  Trash2
+} from 'lucide-react';
+
+const suggestions = [
+  {
+    icon: Code2,
+    title: 'Debug code',
+    text: 'Paste an error, stack trace, or function to improve.'
+  },
+  {
+    icon: Brain,
+    title: 'Think through',
+    text: 'Break down a plan, tradeoff, or technical decision.'
+  },
+  {
+    icon: FileText,
+    title: 'Write better',
+    text: 'Draft docs, emails, summaries, and project notes.'
+  }
+];
+
+const MAX_CONTEXT_MESSAGES = 6;
 
 export default function ChatWindow({
   conversation,
@@ -18,91 +52,74 @@ export default function ChatWindow({
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState('');
-  const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const textareaRef = useRef(null);
 
+  const hasMessages = (conversation?.messages?.length || 0) > 0;
+
   const scrollToBottom = (smooth = false) => {
-    // Use requestAnimationFrame to ensure scroll happens after DOM updates
     requestAnimationFrame(() => {
       if (messagesContainerRef.current) {
-        if (smooth) {
-          messagesContainerRef.current.scrollTo({
-            top: messagesContainerRef.current.scrollHeight,
-            behavior: 'smooth'
-          });
-        } else {
-          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-        }
+        messagesContainerRef.current.scrollTo({
+          top: messagesContainerRef.current.scrollHeight,
+          behavior: smooth ? 'smooth' : 'auto'
+        });
       }
     });
   };
 
   useEffect(() => {
-    // Smooth scroll when messages change but not streaming
     scrollToBottom(!isStreaming);
   }, [conversation?.messages]);
 
-  // Instant scroll during streaming for better performance
   useEffect(() => {
-    if (isStreaming) {
-      scrollToBottom(false);
-    }
-  }, [isStreaming, conversation?.messages?.length, conversation?.messages?.[conversation?.messages?.length - 1]?.content]);
-
-  useEffect(() => {
-    // Auto-resize textarea
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [input]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!input.trim() || isStreaming) return;
+  const submitPrompt = async (prompt) => {
+    if (!prompt.trim() || isStreaming || !conversation) return;
 
     const userMessage = {
       role: 'user',
-      content: input,
+      content: prompt,
       timestamp: new Date()
     };
 
-    // Prepare conversation history BEFORE adding new messages
-    const history = conversation.messages.map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }));
+    const history = conversation.messages
+      .slice(-MAX_CONTEXT_MESSAGES)
+      .map((msg) => ({
+        role: msg.role,
+        content: msg.content
+      }));
 
     setInput('');
     setError('');
     onAddMessage(conversation.id, userMessage);
-
-    // Create initial assistant message
-    const assistantMessage = {
+    onAddMessage(conversation.id, {
       role: 'assistant',
       content: '',
       model: selectedModel,
       timestamp: new Date(),
       isStreaming: true
-    };
-    onAddMessage(conversation.id, assistantMessage);
-
+    });
     setIsStreaming(true);
 
     try {
       const response = await fetch(`${apiUrl}/chat`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          prompt: input,
+          prompt,
           model: useRouter ? null : selectedModel,
           use_router: useRouter,
           conversation_id: conversation.id,
           conversation_history: history
-        }),
+        })
       });
 
       if (!response.ok) {
@@ -113,45 +130,55 @@ export default function ChatWindow({
       const decoder = new TextDecoder();
       let accumulatedContent = '';
       let actualModel = selectedModel;
+      let sseBuffer = '';
+
+      const handleStreamEvent = (event) => {
+        const dataLine = event
+          .split('\n')
+          .find((line) => line.startsWith('data: '));
+
+        if (!dataLine) return;
+
+        try {
+          const data = JSON.parse(dataLine.slice(6));
+          if (data.type === 'metadata') {
+            actualModel = data.model;
+            onUpdateLastMessage(conversation.id, { model: actualModel });
+          } else if (data.type === 'content') {
+            accumulatedContent += data.content;
+            onUpdateLastMessage(conversation.id, {
+              content: accumulatedContent,
+              model: actualModel
+            });
+          } else if (data.type === 'done') {
+            onUpdateLastMessage(conversation.id, {
+              isStreaming: false,
+              model: actualModel
+            });
+          }
+        } catch (e) {
+          console.error('Error parsing SSE:', e);
+        }
+      };
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
+        sseBuffer += decoder.decode(value, { stream: true });
+        const events = sseBuffer.split('\n\n');
+        sseBuffer = events.pop() || '';
+        events.forEach(handleStreamEvent);
+      }
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              
-              if (data.type === 'metadata') {
-                actualModel = data.model;
-                onUpdateLastMessage(conversation.id, { model: actualModel });
-              } else if (data.type === 'content') {
-                accumulatedContent += data.content;
-                onUpdateLastMessage(conversation.id, { 
-                  content: accumulatedContent,
-                  model: actualModel
-                });
-              } else if (data.type === 'done') {
-                onUpdateLastMessage(conversation.id, { 
-                  isStreaming: false,
-                  model: actualModel
-                });
-              }
-            } catch (e) {
-              console.error('Error parsing SSE:', e);
-            }
-          }
-        }
+      if (sseBuffer.trim()) {
+        handleStreamEvent(sseBuffer);
       }
     } catch (err) {
       console.error('Chat error:', err);
-      setError('Failed to get response from the model. Make sure Ollama is running.');
+      setError('Failed to get response. Make sure Ollama is running and the selected model is installed.');
       onUpdateLastMessage(conversation.id, {
-        content: '❌ Error: Failed to get response. Please check if Ollama is running.',
+        content: 'Error: Failed to get response. Please check Ollama and your selected model.',
         isStreaming: false,
         error: true
       });
@@ -160,168 +187,359 @@ export default function ChatWindow({
     }
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    submitPrompt(input);
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e);
+      submitPrompt(input);
     }
   };
 
   if (!conversation) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-slate-950/50 to-slate-900/50">
-        <div className="text-center px-6">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20 flex items-center justify-center border border-indigo-500/30">
-            <MessageBubble className="w-10 h-10 text-indigo-400" />
-          </div>
-          <h3 className="text-xl font-semibold text-slate-300 mb-2">No Conversation Selected</h3>
-          <p className="text-slate-500 text-sm">Select or create a conversation to start chatting</p>
+      <main className="flex flex-1 items-center justify-center">
+        <div className="text-center">
+          <Bot className="mx-auto mb-4 h-10 w-10 text-[#55f3df]" />
+          <h2 className="text-xl font-semibold text-white">Preparing your workspace</h2>
+          <p className="mt-2 text-sm text-[#80958f]">Loading conversations from persistent memory.</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-slate-950/50 to-slate-900/50">
-      {/* Messages Area */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-6 chat-scroll">
-        {conversation.messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400 relative">
-            {/* Aurora Background */}
-            <div className="absolute inset-0">
-              <Aurora
-                colorStops={["#7cff67","#B19EEF","#5227FF"]}
-                blend={0.5}
-                amplitude={1.0}
-                speed={1}
-              />
+    <main className="relative flex h-full flex-1 flex-col overflow-hidden">
+      {!hasMessages && (
+        <div className="pointer-events-none absolute inset-0 z-0 opacity-90">
+          <Aurora
+            colorStops={['#24f0df', '#7cff67', '#5227FF']}
+            blend={0.55}
+            amplitude={1.15}
+            speed={0.8}
+          />
+        </div>
+      )}
+
+      <header className="relative z-10 flex h-16 items-center justify-between border-b border-white/[0.06] bg-[#07100f]/45 px-8 backdrop-blur-xl">
+        <div>
+          <h2 className="text-sm font-medium text-white">{conversation.title || 'New Chat'}</h2>
+          <p className="text-xs text-[#70857f]">
+            {hasMessages ? `${conversation.messages.length} messages` : 'Start a local conversation'}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="hidden items-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.035] px-3 py-1.5 text-xs text-[#9fb1ad] md:flex">
+            <Route className="h-3.5 w-3.5 text-[#55f3df]" />
+            {useRouter ? 'Router active' : selectedModel}
+          </div>
+          {hasMessages && (
+            <button
+              onClick={onClearChat}
+              disabled={isStreaming}
+              className="rounded-xl border border-white/[0.07] bg-white/[0.035] p-2 text-[#80958f] transition hover:border-rose-400/25 hover:bg-rose-400/10 hover:text-rose-300 disabled:opacity-50"
+              title="Clear chat"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </header>
+
+      <section ref={messagesContainerRef} className="relative z-10 flex-1 overflow-y-auto px-6">
+        {!hasMessages ? (
+          <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col justify-center py-10">
+            <div className="mb-8 max-w-3xl">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#28ead8]/20 bg-[#20dcca]/10 px-3 py-1.5 text-xs text-[#8ffcf0]">
+                <Sparkles className="h-3.5 w-3.5" />
+                Local models, private memory, streaming responses
+              </div>
+              <h1 className="text-5xl font-semibold tracking-[-0.04em] text-white md:text-7xl">
+                How can I help?
+              </h1>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-[#9fb1ad]">
+                Ask a question, debug code, compare models, or continue building your local AI workspace.
+              </p>
             </div>
 
-            {/* Content */}
-            <div className="relative z-10 text-center">
-              <h1 className="text-8xl font-bold mb-8 text-white drop-shadow-2xl">
-                Hello
-              </h1>
-              <p className="text-xl text-white/90 max-w-2xl leading-relaxed drop-shadow-lg">
-                Ask me anything! I'm powered by local LLMs running on your machine via Ollama.
-              </p>
-              {models.length === 0 && (
-                <div className="mt-12 p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl max-w-md mx-auto backdrop-blur-md">
-                  <div className="flex items-start gap-4">
-                    <AlertCircle className="w-6 h-6 text-amber-400 flex-shrink-0 mt-1" />
-                    <div className="text-sm">
-                      <p className="font-semibold text-amber-300 mb-2 text-base">No models found</p>
-                      <p className="text-slate-400 leading-relaxed">
-                        Make sure Ollama is running and you have models installed.
-                        Run: <code className="bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-700/50 text-amber-400 font-mono text-xs">ollama pull llama3.2</code>
-                      </p>
+            <div className="mb-6 grid gap-3 md:grid-cols-3">
+              {suggestions.map((suggestion) => {
+                const Icon = suggestion.icon;
+                return (
+                  <button
+                    key={suggestion.title}
+                    onClick={() => setInput(suggestion.text)}
+                    className="group rounded-2xl border border-white/[0.08] bg-[#07100f]/60 p-4 text-left shadow-[0_20px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl transition hover:border-[#28ead8]/25 hover:bg-[#102421]/80"
+                  >
+                    <div className="mb-4 grid h-9 w-9 place-items-center rounded-xl bg-[#20dcca]/10 text-[#7ffff0] transition group-hover:bg-[#20dcca]/16">
+                      <Icon className="h-4 w-4" />
                     </div>
-                  </div>
-                </div>
-              )}
+                    <div className="text-sm font-semibold text-white">{suggestion.title}</div>
+                    <div className="mt-1 text-sm leading-5 text-[#819690]">{suggestion.text}</div>
+                  </button>
+                );
+              })}
             </div>
+
+            <Composer
+              input={input}
+              setInput={setInput}
+              textareaRef={textareaRef}
+              handleSubmit={handleSubmit}
+              handleKeyDown={handleKeyDown}
+              isStreaming={isStreaming}
+              models={models}
+              selectedModel={selectedModel}
+              onSelectModel={onSelectModel}
+              useRouter={useRouter}
+              onToggleRouter={onToggleRouter}
+              large
+            />
+
+            {models.length === 0 && (
+              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/8 p-4 text-sm text-amber-100">
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <span>No Ollama models found. Run <code className="rounded bg-black/35 px-1.5 py-0.5">ollama pull llama3.2</code>.</span>
+              </div>
+            )}
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="mx-auto max-w-5xl space-y-6 py-8">
             {conversation.messages.map((message, index) => (
-              <MessageBubble 
-                key={`${conversation.id}-${index}-${message.timestamp?.getTime() || index}`} 
-                message={message} 
+              <MessageBubble
+                key={`${conversation.id}-${index}-${message.timestamp?.getTime() || index}`}
+                message={message}
               />
             ))}
-            <div ref={messagesEndRef} />
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Error Display */}
       {error && (
-        <div className="px-6 py-4 bg-red-500/5 border-t border-red-500/20 backdrop-blur-xl">
-          <div className="max-w-4xl mx-auto flex items-center gap-3 text-red-400 text-sm">
-            <div className="p-2 rounded-xl bg-red-500/10 backdrop-blur-sm border border-red-500/20">
-              <AlertCircle className="w-5 h-5" />
-            </div>
-            <span className="font-medium">{error}</span>
+        <div className="relative z-20 border-t border-red-400/20 bg-red-400/8 px-8 py-3 text-sm text-red-200">
+          <div className="mx-auto flex max-w-5xl items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            {error}
           </div>
         </div>
       )}
 
-      {/* Input Area */}
-      <div className="border-t border-white/10 bg-slate-900/30 backdrop-blur-xl px-6 py-6 shadow-2xl">
-        <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit} className="flex gap-3 items-end">
-            {/* Model Selector Dropdown */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-medium text-slate-300">Model</label>
-              <select
-                value={selectedModel}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  onSelectModel(value);
-                  onToggleRouter(value === 'auto');
-                }}
-                disabled={isStreaming}
-                className="bg-white/10 text-slate-100 rounded-xl px-3 py-2 text-sm border border-white/20 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-300 backdrop-blur-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                style={{
-                  backdropFilter: 'blur(20px) saturate(180%)',
-                  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                }}
-              >
-                <option value="auto">🤖 Auto</option>
-                <option disabled>─────</option>
-                {models.map((model) => (
-                  <option key={model.name} value={model.name}>
-                    {model.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+      {hasMessages && (
+        <footer className="relative z-20 border-t border-white/[0.06] bg-[#07100f]/75 px-6 py-4 backdrop-blur-2xl">
+          <div className="mx-auto max-w-5xl">
+            <Composer
+              input={input}
+              setInput={setInput}
+              textareaRef={textareaRef}
+              handleSubmit={handleSubmit}
+              handleKeyDown={handleKeyDown}
+              isStreaming={isStreaming}
+              models={models}
+              selectedModel={selectedModel}
+              onSelectModel={onSelectModel}
+              useRouter={useRouter}
+              onToggleRouter={onToggleRouter}
+            />
+          </div>
+        </footer>
+      )}
+    </main>
+  );
+}
 
-            <div className="flex-1">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={`Ask anything${selectedModel !== 'auto' ? ` (${selectedModel})` : ''}...`}
-                className="w-full bg-white/5 text-slate-100 placeholder-slate-400 rounded-2xl px-5 py-4 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-300 max-h-40 border border-white/10 backdrop-blur-md shadow-lg"
-                rows="1"
-                disabled={isStreaming}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={!input.trim() || isStreaming || models.length === 0}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white rounded-2xl px-5 py-4 transition-all duration-300 flex items-center gap-2 font-medium shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 disabled:hover:scale-100 disabled:shadow-none backdrop-blur-sm"
-            >
-              <Send className="w-5 h-5" />
-              {isStreaming ? 'Sending...' : 'Send'}
-            </button>
-            {conversation.messages.length > 0 && (
-              <button
-                type="button"
-                onClick={onClearChat}
-                disabled={isStreaming}
-                className="bg-white/5 hover:bg-white/10 disabled:bg-white/5 disabled:cursor-not-allowed text-slate-300 hover:text-red-400 rounded-2xl px-5 py-4 transition-all duration-300 border border-white/10 hover:border-red-500/50 backdrop-blur-md"
-                title="Clear chat"
-              >
-                <Trash2 className="w-5 h-5" />
-              </button>
-            )}
-          </form>
-          <div className="mt-3 text-xs text-slate-400 flex items-center justify-between">
-            <span>
-              Press <kbd className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-slate-300 backdrop-blur-sm">Enter</kbd> to send, <kbd className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-slate-300 backdrop-blur-sm">Shift + Enter</kbd> for new line
-            </span>
-            {useRouter && (
-              <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
-                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-                Router Mode Active
-              </span>
+function Composer({
+  input,
+  setInput,
+  textareaRef,
+  handleSubmit,
+  handleKeyDown,
+  isStreaming,
+  models,
+  selectedModel,
+  onSelectModel,
+  useRouter,
+  onToggleRouter,
+  large = false
+}) {
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className={`rounded-3xl border border-[#28ead8]/18 bg-[#0e2421]/92 shadow-[0_24px_80px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-2xl ${
+        large ? 'p-4' : 'p-3'
+      }`}
+    >
+      <textarea
+        ref={textareaRef}
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Ask anything..."
+        rows="1"
+        disabled={isStreaming}
+        className={`max-h-44 w-full resize-none bg-transparent text-[#f4fbf9] outline-none placeholder:text-[#78908a] ${
+          large ? 'min-h-[96px] text-lg' : 'min-h-[48px] text-base'
+        }`}
+      />
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <ModelPicker
+            models={models}
+            selectedModel={selectedModel}
+            useRouter={useRouter}
+            isStreaming={isStreaming}
+            onSelectModel={onSelectModel}
+            onToggleRouter={onToggleRouter}
+          />
+          <button
+            type="button"
+            onClick={() => onToggleRouter(!useRouter)}
+            className={`inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-sm transition ${
+              useRouter
+                ? 'border-[#28ead8]/20 bg-[#20dcca]/10 text-[#8ffcf0]'
+                : 'border-white/[0.08] bg-white/[0.035] text-[#8da19c]'
+            }`}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Router
+          </button>
+        </div>
+        <button
+          type="submit"
+          disabled={!input.trim() || isStreaming || models.length === 0}
+          className="grid h-11 w-11 place-items-center rounded-2xl bg-[#20dcca] text-[#06211e] shadow-[0_0_28px_rgba(32,220,202,0.24)] transition hover:bg-[#69f8eb] disabled:cursor-not-allowed disabled:bg-[#23413d] disabled:text-[#6d8985] disabled:shadow-none"
+          title="Send"
+        >
+          {isStreaming ? <Send className="h-5 w-5" /> : <ArrowUp className="h-5 w-5" />}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function ModelPicker({
+  models,
+  selectedModel,
+  useRouter,
+  isStreaming,
+  onSelectModel,
+  onToggleRouter
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const pickerRef = useRef(null);
+  const activeLabel = useRouter || selectedModel === 'auto' ? 'Auto router' : selectedModel;
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, []);
+
+  const chooseModel = (value) => {
+    onSelectModel(value);
+    onToggleRouter(value === 'auto');
+    setIsOpen(false);
+  };
+
+  return (
+    <div ref={pickerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen((open) => !open)}
+        disabled={isStreaming}
+        className="inline-flex h-10 min-w-[190px] items-center justify-between gap-3 rounded-xl border border-[#28ead8]/16 bg-[#07100f]/80 px-3 text-sm text-[#d7e6e2] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none transition hover:border-[#28ead8]/34 hover:bg-[#0c1716] disabled:cursor-not-allowed disabled:opacity-50"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          {useRouter || selectedModel === 'auto' ? (
+            <Sparkles className="h-4 w-4 flex-shrink-0 text-[#71fff1]" />
+          ) : (
+            <Cpu className="h-4 w-4 flex-shrink-0 text-[#71fff1]" />
+          )}
+          <span className="truncate">{activeLabel}</span>
+        </span>
+        <ChevronDown className={`h-4 w-4 flex-shrink-0 text-[#78908a] transition ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div
+          className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-[300px] overflow-hidden rounded-2xl border border-[#28ead8]/22 bg-[#07100f] p-1.5 shadow-[0_28px_90px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.035),inset_0_1px_0_rgba(255,255,255,0.05)]"
+          role="listbox"
+        >
+          <ModelOption
+            active={useRouter || selectedModel === 'auto'}
+            icon={Sparkles}
+            title="Auto router"
+            detail="Pick the model per prompt"
+            onClick={() => chooseModel('auto')}
+          />
+
+          <div className="my-1 h-px bg-white/[0.06]" />
+
+          <div className="max-h-60 overflow-y-auto pr-1">
+            {models.length === 0 ? (
+              <div className="px-3 py-4 text-sm text-[#78908a]">No local models found</div>
+            ) : (
+              models.map((model) => (
+                <ModelOption
+                  key={model.name}
+                  active={!useRouter && selectedModel === model.name}
+                  icon={Cpu}
+                  title={model.name}
+                  detail={formatModelSize(model.size)}
+                  onClick={() => chooseModel(model.name)}
+                />
+              ))
             )}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
+}
+
+function ModelOption({ active, icon: Icon, title, detail, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+        active
+          ? 'bg-[#20dcca]/14 text-[#eafffc]'
+          : 'text-[#b8cbc6] hover:bg-white/[0.045] hover:text-white'
+      }`}
+      role="option"
+      aria-selected={active}
+    >
+      <span
+        className={`grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg border ${
+          active
+            ? 'border-[#28ead8]/28 bg-[#20dcca]/16 text-[#8ffcf0]'
+            : 'border-white/[0.07] bg-white/[0.035] text-[#78908a]'
+        }`}
+      >
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium">{title}</span>
+        {detail && <span className="block truncate text-xs text-[#78908a]">{detail}</span>}
+      </span>
+      {active && <Check className="h-4 w-4 flex-shrink-0 text-[#8ffcf0]" />}
+    </button>
+  );
+}
+
+function formatModelSize(size) {
+  if (!size) return 'Local model';
+  const gb = size / 1024 ** 3;
+  if (gb >= 1) return `${gb.toFixed(gb >= 10 ? 0 : 1)} GB`;
+  return `${(size / 1024 ** 2).toFixed(0)} MB`;
 }

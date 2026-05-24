@@ -1,8 +1,27 @@
-import { useState } from 'react';
-import { RefreshCw, Database, HardDrive, Calendar, CheckCircle } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+  CheckCircle2,
+  Cpu,
+  Database,
+  HardDrive,
+  RefreshCw,
+  Search,
+  Sparkles,
+  Terminal
+} from 'lucide-react';
 
-export default function ModelManagement({ models, onRefresh, selectedModel }) {
+export default function ModelManagement({ models, onRefresh, selectedModel, onSelectModel }) {
   const [refreshing, setRefreshing] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const totalSize = useMemo(
+    () => models.reduce((acc, model) => acc + (model.size || 0), 0),
+    [models]
+  );
+
+  const filteredModels = models.filter((model) =>
+    model.name.toLowerCase().includes(query.toLowerCase())
+  );
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -11,176 +30,153 @@ export default function ModelManagement({ models, onRefresh, selectedModel }) {
   };
 
   const formatBytes = (bytes) => {
-    if (bytes === 0) return '0 B';
+    if (!bytes) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    return `${Math.round((bytes / Math.pow(k, i)) * 100) / 100} ${sizes[i]}`;
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown';
-    const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    return new Date(dateString).toLocaleString();
+  };
+
+  const getModelType = (name) => {
+    const lower = name.toLowerCase();
+    if (lower.includes('coder') || lower.includes('code')) return 'Coding';
+    if (lower.includes('embed')) return 'Embedding';
+    if (lower.includes('llava') || lower.includes('vision')) return 'Vision';
+    return 'Chat';
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-8 bg-gradient-to-br from-slate-950/50 to-slate-900/50">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+    <main className="h-full overflow-y-auto px-8 py-7">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-100">Model Management</h2>
-            <p className="text-sm text-gray-400 mt-1">
-              Manage your locally installed Ollama models
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#28ead8]/20 bg-[#20dcca]/10 px-3 py-1.5 text-xs text-[#8ffcf0]">
+              <Database className="h-3.5 w-3.5" />
+              Ollama model catalogue
+            </div>
+            <h2 className="text-4xl font-semibold tracking-[-0.03em] text-white">Models</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8da19c]">
+              Browse installed local models, inspect storage usage, and choose a default model for manual chat.
             </p>
           </div>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-slate-700 disabled:to-slate-700 text-white rounded-lg transition font-medium shadow-lg shadow-indigo-500/30 backdrop-blur-sm"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#20dcca] px-4 py-3 text-sm font-semibold text-[#06211e] shadow-[0_18px_45px_rgba(32,220,202,0.18)] transition hover:bg-[#68f8ea] disabled:opacity-60"
           >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh catalogue
           </button>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-white/5 backdrop-blur-md rounded-lg p-4 border border-white/10 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-600/20 rounded-lg backdrop-blur-sm">
-                <Database className="w-5 h-5 text-indigo-400" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-100">{models.length}</div>
-                <div className="text-sm text-gray-400">Total Models</div>
-              </div>
-            </div>
-          </div>
+        <div className="mb-6 grid gap-4 md:grid-cols-3">
+          <StatCard icon={Database} label="Installed models" value={models.length} />
+          <StatCard icon={HardDrive} label="Local storage" value={formatBytes(totalSize)} />
+          <StatCard icon={Sparkles} label="Selected" value={selectedModel === 'auto' ? 'Auto router' : selectedModel || 'None'} compact />
+        </div>
 
-          <div className="bg-white/5 backdrop-blur-md rounded-lg p-4 border border-white/10 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-600/20 rounded-lg backdrop-blur-sm">
-                <CheckCircle className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-100">
-                  {models.length}
-                </div>
-                <div className="text-sm text-gray-400">Available Models</div>
-              </div>
-            </div>
+        <div className="mb-5 flex flex-col gap-3 rounded-3xl border border-white/[0.08] bg-[#07100f]/70 p-4 backdrop-blur-xl md:flex-row md:items-center md:justify-between">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6f8580]" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search models..."
+              className="h-11 w-full rounded-2xl border border-white/[0.08] bg-[#0b1716] pl-10 pr-4 text-sm text-white outline-none transition placeholder:text-[#60756f] focus:border-[#28ead8]/35"
+            />
           </div>
-
-          <div className="bg-white/5 backdrop-blur-md rounded-lg p-4 border border-white/10 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-600/20 rounded-lg backdrop-blur-sm">
-                <HardDrive className="w-5 h-5 text-purple-400" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-100">
-                  {formatBytes(models.reduce((acc, m) => acc + (m.size || 0), 0))}
-                </div>
-                <div className="text-sm text-gray-400">Total Size</div>
-              </div>
-            </div>
+          <div className="flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-xs text-[#8da19c]">
+            <Terminal className="h-4 w-4 text-[#55f3df]" />
+            ollama list
           </div>
         </div>
 
-        {/* Models List */}
-        {models.length === 0 ? (
-          <div className="bg-white/5 backdrop-blur-md rounded-lg p-12 border border-white/10 text-center shadow-lg">
-            <Database className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-300 mb-2">No Models Found</h3>
-            <p className="text-gray-500 mb-4">
-              No Ollama models are currently installed on your system.
+        {filteredModels.length === 0 ? (
+          <div className="rounded-3xl border border-white/[0.08] bg-[#07100f]/70 p-12 text-center">
+            <Database className="mx-auto mb-4 h-12 w-12 text-[#526862]" />
+            <h3 className="text-lg font-semibold text-white">No models found</h3>
+            <p className="mt-2 text-sm text-[#8da19c]">
+              Install one with <code className="rounded bg-black/35 px-2 py-1 text-[#8ffcf0]">ollama pull llama3.2</code>.
             </p>
-            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 max-w-md mx-auto text-left border border-white/10">
-              <p className="text-sm text-gray-400 mb-2">To install a model, run:</p>
-              <code className="block bg-slate-950/50 text-emerald-400 px-3 py-2 rounded font-mono text-sm border border-white/5">
-                ollama pull llama3.2
-              </code>
-              <p className="text-xs text-gray-500 mt-2">
-                Or visit: <a href="https://ollama.com/library" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">ollama.com/library</a>
-              </p>
-            </div>
           </div>
         ) : (
-          <div className="space-y-3">
-            {models.map((model) => {
+          <div className="grid gap-4 xl:grid-cols-2">
+            {filteredModels.map((model) => {
               const isSelected = selectedModel === model.name;
-              
+              const type = getModelType(model.name);
+
               return (
-                <div
+                <article
                   key={model.name}
-                  className={`bg-white/5 backdrop-blur-md rounded-lg p-5 border transition shadow-lg ${
-                    isSelected
-                      ? 'border-indigo-500/50 bg-indigo-500/10'
-                      : 'border-white/10 hover:border-white/20'
+                  className={`group rounded-3xl border bg-[#07100f]/72 p-5 shadow-[0_24px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-[#28ead8]/24 ${
+                    isSelected ? 'border-[#28ead8]/35' : 'border-white/[0.08]'
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-100">
-                          {model.name}
-                        </h3>
-                        {isSelected && (
-                          <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full font-medium">
-                            Selected
-                          </span>
-                        )}
+                  <div className="mb-5 flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className="grid h-12 w-12 place-items-center rounded-2xl border border-[#28ead8]/18 bg-[#20dcca]/10 text-[#7ffff0]">
+                        <Cpu className="h-5 w-5" />
                       </div>
-
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <div className="text-gray-500 mb-1">Size</div>
-                          <div className="text-gray-300 font-medium">
-                            {formatBytes(model.size)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-gray-500 mb-1">Last Modified</div>
-                          <div className="text-gray-300 font-medium">
-                            {formatDate(model.modified_at)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-gray-500 mb-1">Status</div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span className="text-gray-300 font-medium">Available</span>
-                          </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">{model.name}</h3>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-white/[0.06] px-2 py-1 text-xs text-[#9fb1ad]">{type}</span>
+                          <span className="rounded-full bg-emerald-400/10 px-2 py-1 text-xs text-emerald-200">Available</span>
+                          {isSelected && (
+                            <span className="rounded-full bg-[#20dcca]/12 px-2 py-1 text-xs text-[#8ffcf0]">Selected</span>
+                          )}
                         </div>
                       </div>
-
-                      {model.digest && (
-                        <div className="mt-3 pt-3 border-t border-gray-700">
-                          <div className="text-xs text-gray-500">
-                            Digest: <code className="text-gray-400 font-mono">{model.digest.slice(0, 32)}...</code>
-                          </div>
-                        </div>
-                      )}
                     </div>
+                    <button
+                      onClick={() => onSelectModel(model.name)}
+                      className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                        isSelected
+                          ? 'bg-[#20dcca] text-[#06211e]'
+                          : 'border border-white/[0.08] bg-white/[0.035] text-[#9fb1ad] hover:border-[#28ead8]/28 hover:text-[#8ffcf0]'
+                      }`}
+                    >
+                      {isSelected ? 'In use' : 'Use model'}
+                    </button>
                   </div>
-                </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <Metric label="Size" value={formatBytes(model.size)} />
+                    <Metric label="Modified" value={formatDate(model.modified_at)} />
+                    <Metric label="Digest" value={model.digest ? `${model.digest.slice(0, 12)}...` : 'Unknown'} mono />
+                  </div>
+                </article>
               );
             })}
           </div>
         )}
-
-        {/* Info Box */}
-        <div className="mt-6 bg-gray-800 border border-gray-700 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-gray-300 mb-2">💡 Tips</h3>
-          <ul className="space-y-1 text-sm text-gray-400">
-            <li>• To install a new model: <code className="bg-gray-900 px-2 py-0.5 rounded text-blue-400">ollama pull model-name</code></li>
-            <li>• To remove a model: <code className="bg-gray-900 px-2 py-0.5 rounded text-blue-400">ollama rm model-name</code></li>
-            <li>• To list all models: <code className="bg-gray-900 px-2 py-0.5 rounded text-blue-400">ollama list</code></li>
-            <li>• Models are automatically detected from your Ollama installation</li>
-          </ul>
-        </div>
       </div>
+    </main>
+  );
+}
+
+function StatCard({ icon: Icon, label, value, compact = false }) {
+  return (
+    <div className="rounded-3xl border border-white/[0.08] bg-[#07100f]/70 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.16)] backdrop-blur-xl">
+      <div className="mb-4 grid h-10 w-10 place-items-center rounded-2xl bg-[#20dcca]/10 text-[#7ffff0]">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className={`font-semibold text-white ${compact ? 'truncate text-xl' : 'text-3xl'}`}>{value}</div>
+      <div className="mt-1 text-sm text-[#819690]">{label}</div>
+    </div>
+  );
+}
+
+function Metric({ label, value, mono = false }) {
+  return (
+    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3">
+      <div className="text-xs text-[#667b76]">{label}</div>
+      <div className={`mt-1 truncate text-sm text-[#dce9e5] ${mono ? 'font-mono' : 'font-medium'}`}>{value}</div>
     </div>
   );
 }

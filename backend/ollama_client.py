@@ -1,7 +1,11 @@
 import httpx
 import json
 import os
+import time
 from typing import List, Dict, AsyncIterator
+
+STREAM_BATCH_CHARS = int(os.getenv("STREAM_BATCH_CHARS", "40"))
+STREAM_BATCH_SECONDS = float(os.getenv("STREAM_BATCH_SECONDS", "0.08"))
 
 
 class OllamaClient:
@@ -61,6 +65,9 @@ class OllamaClient:
                 ) as response:
                     response.raise_for_status()
                     
+                    buffered_content = ""
+                    last_flush = time.monotonic()
+
                     async for line in response.aiter_lines():
                         if line.strip():
                             try:
@@ -68,9 +75,20 @@ class OllamaClient:
                                 if "message" in chunk:
                                     content = chunk["message"].get("content", "")
                                     if content:
-                                        yield content
+                                        buffered_content += content
+                                        should_flush = (
+                                            len(buffered_content) >= STREAM_BATCH_CHARS
+                                            or time.monotonic() - last_flush >= STREAM_BATCH_SECONDS
+                                        )
+                                        if should_flush:
+                                            yield buffered_content
+                                            buffered_content = ""
+                                            last_flush = time.monotonic()
                             except json.JSONDecodeError:
                                 continue
+
+                    if buffered_content:
+                        yield buffered_content
             
             except httpx.HTTPStatusError as e:
                 # Can't access .text on streaming responses without reading first

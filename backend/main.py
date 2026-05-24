@@ -24,6 +24,13 @@ app.add_middleware(
 ollama_client = OllamaClient()
 model_router = ModelRouter()
 
+MAX_CONTEXT_MESSAGES = 6
+FORMAT_SYSTEM_PROMPT = (
+    "Format answers in clean Markdown. When the user asks for a table, output a "
+    "valid GitHub-Flavored Markdown table with each row on its own line, a header "
+    "separator row, and no table inside a code block."
+)
+
 
 class ChatRequest(BaseModel):
     prompt: str
@@ -165,8 +172,9 @@ async def chat(request: ChatRequest):
                 raise HTTPException(status_code=400, detail="Model must be specified when router is disabled")
             selected_model = request.model
         
-        # Prepare messages
-        messages = request.conversation_history or []
+        # Keep only recent context so prompt processing does not grow forever.
+        messages = [{"role": "system", "content": FORMAT_SYSTEM_PROMPT}]
+        messages.extend((request.conversation_history or [])[-MAX_CONTEXT_MESSAGES:])
         messages.append({"role": "user", "content": request.prompt})
 
         existing_messages = database.list_messages(conversation_id)

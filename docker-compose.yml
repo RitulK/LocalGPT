@@ -1,24 +1,4 @@
 services:
-  # Ollama service - runs LLM models locally
-  ollama:
-    image: ollama/ollama:latest
-    container_name: localgpt-ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    restart: unless-stopped
-    networks:
-      - localgpt-network
-    # Uncomment below if you have NVIDIA GPU
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
-
   # Backend service - FastAPI server
   backend:
     build:
@@ -28,9 +8,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - OLLAMA_HOST=http://ollama:11434
-    depends_on:
-      - ollama
+      # Use native Ollama on the macOS host so it can use Apple Metal acceleration.
+      - OLLAMA_HOST=http://host.docker.internal:11434
     restart: unless-stopped
     volumes:
       - ./backend:/app
@@ -55,10 +34,6 @@ services:
       - /app/node_modules
     networks:
       - localgpt-network
-
-volumes:
-  ollama_data:
-    driver: local
 
 networks:
   localgpt-network:

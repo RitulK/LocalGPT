@@ -13,22 +13,17 @@ echo ""
 echo "⏳ Waiting for services to start..."
 sleep 5
 
-# Wait for Ollama to be ready
-echo "🤖 Checking Ollama service..."
+# Wait for native Ollama to be ready
+echo "🤖 Checking native Ollama on macOS..."
 until curl -s http://localhost:11434/api/tags > /dev/null 2>&1; do
-    echo "   Waiting for Ollama to start..."
+    echo "   Waiting for Ollama to start on http://localhost:11434..."
     sleep 2
 done
 echo "✅ Ollama is running!"
 
-# Pull recommended models (if not already present)
 echo ""
-echo "📥 Checking for required models..."
-echo "   This may take several minutes on first run..."
-
-docker exec localgpt-ollama ollama pull qwen:4b
-docker exec localgpt-ollama ollama pull llama3.2
-docker exec localgpt-ollama ollama pull qwen2.5-coder
+echo "📥 Installed native Ollama models:"
+curl -s http://localhost:11434/api/tags
 
 echo ""
 echo "✨ LocalGPT is ready!"
@@ -37,7 +32,7 @@ echo "🌐 Access points:"
 echo "   Frontend:  http://localhost:5173"
 echo "   Backend:   http://localhost:8000"
 echo "   API Docs:  http://localhost:8000/docs"
-echo "   Ollama:    http://localhost:11434"
+echo "   Ollama:    http://localhost:11434 (native host app)"
 echo ""
 echo "📊 View logs:"
 echo "   docker-compose logs -f"
