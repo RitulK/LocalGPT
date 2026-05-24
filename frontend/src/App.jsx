@@ -4,11 +4,24 @@ import ChatWindow from './components/ChatWindow';
 import ModelManagement from './components/ModelManagement';
 import { Bot, Menu, X } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const hydrateConversation = (conversation) => ({
+  id: conversation.id,
+  title: conversation.title,
+  createdAt: new Date(conversation.created_at),
+  updatedAt: new Date(conversation.updated_at),
+  messages: (conversation.messages || []).map((message) => ({
+    role: message.role,
+    content: message.content,
+    model: message.model,
+    timestamp: new Date(message.created_at)
+  }))
+});
+
 function App() {
-  const [conversations, setConversations] = useState([
-    { id: 1, title: 'New Chat', messages: [], createdAt: new Date() }
-  ]);
-  const [currentConversationId, setCurrentConversationId] = useState(1);
+  const [conversations, setConversations] = useState([]);
+  const [currentConversationId, setCurrentConversationId] = useState(null);
   const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('auto');
   const [useRouter, setUseRouter] = useState(true);
@@ -20,13 +33,14 @@ function App() {
 
   // Fetch models on mount
   useEffect(() => {
+    fetchConversations();
     fetchModels();
     checkOllamaHealth();
   }, []);
 
   const checkOllamaHealth = async () => {
     try {
-      const response = await fetch('http://localhost:8000/health');
+      const response = await fetch(`${API_URL}/health`);
       const data = await response.json();
       setOllamaStatus(data.ollama_running ? 'running' : 'stopped');
     } catch (error) {
@@ -36,7 +50,7 @@ function App() {
 
   const fetchModels = async () => {
     try {
-      const response = await fetch('http://localhost:8000/models');
+      const response = await fetch(`${API_URL}/models`);
       const data = await response.json();
       setModels(data.models || []);
       
@@ -49,23 +63,71 @@ function App() {
     }
   };
 
-  const createNewConversation = () => {
-    const newId = Math.max(...conversations.map(c => c.id), 0) + 1;
-    const newConv = {
-      id: newId,
-      title: 'New Chat',
-      messages: [],
-      createdAt: new Date()
-    };
-    setConversations([...conversations, newConv]);
-    setCurrentConversationId(newId);
+  const fetchConversations = async () => {
+    try {
+      const response = await fetch(`${API_URL}/conversations`);
+      const data = await response.json();
+      const savedConversations = (data.conversations || []).map(hydrateConversation);
+
+      if (savedConversations.length > 0) {
+        setConversations(savedConversations);
+        setCurrentConversationId(savedConversations[0].id);
+      } else {
+        await createNewConversation();
+      }
+    } catch (error) {
+      console.error('Failed to fetch conversations:', error);
+      const fallbackConversation = {
+        id: Date.now(),
+        title: 'New Chat',
+        messages: [],
+        createdAt: new Date()
+      };
+      setConversations([fallbackConversation]);
+      setCurrentConversationId(fallbackConversation.id);
+    }
   };
 
-  const deleteConversation = (id) => {
+  const createNewConversation = async () => {
+    try {
+      const response = await fetch(`${API_URL}/conversations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ title: 'New Chat' }),
+      });
+      const data = await response.json();
+      const newConv = hydrateConversation(data.conversation);
+      setConversations(prev => [newConv, ...prev]);
+      setCurrentConversationId(newConv.id);
+    } catch (error) {
+      console.error('Failed to create conversation:', error);
+      const newId = Math.max(...conversations.map(c => c.id), 0) + 1;
+      const newConv = {
+        id: newId,
+        title: 'New Chat',
+        messages: [],
+        createdAt: new Date()
+      };
+      setConversations([...conversations, newConv]);
+      setCurrentConversationId(newId);
+    }
+  };
+
+  const deleteConversation = async (id) => {
+    try {
+      await fetch(`${API_URL}/conversations/${id}`, {
+        method: 'DELETE',
+      });
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+    }
+
     if (conversations.length === 1) {
       // Don't delete the last conversation, just clear it
-      setConversations([{ id: 1, title: 'New Chat', messages: [], createdAt: new Date() }]);
-      setCurrentConversationId(1);
+      await createNewConversation();
+      setConversations(prev => prev.filter(c => c.id !== id));
     } else {
       const filtered = conversations.filter(c => c.id !== id);
       setConversations(filtered);
@@ -117,7 +179,15 @@ function App() {
     });
   };
 
-  const clearCurrentChat = () => {
+  const clearCurrentChat = async () => {
+    try {
+      await fetch(`${API_URL}/conversations/${currentConversationId}/messages`, {
+        method: 'DELETE',
+      });
+    } catch (error) {
+      console.error('Failed to clear conversation:', error);
+    }
+
     updateConversation(currentConversationId, { 
       messages: [], 
       title: 'New Chat' 
@@ -202,6 +272,7 @@ function App() {
               models={models}
               onSelectModel={setSelectedModel}
               onToggleRouter={setUseRouter}
+              apiUrl={API_URL}
             />
           )}
 

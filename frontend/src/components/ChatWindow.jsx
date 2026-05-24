@@ -12,7 +12,8 @@ export default function ChatWindow({
   useRouter,
   models,
   onSelectModel,
-  onToggleRouter
+  onToggleRouter,
+  apiUrl
 }) {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -90,7 +91,7 @@ export default function ChatWindow({
     setIsStreaming(true);
 
     try {
-      const response = await fetch('http://localhost:8000/chat', {
+      const response = await fetch(`${apiUrl}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -99,6 +100,7 @@ export default function ChatWindow({
           prompt: input,
           model: useRouter ? null : selectedModel,
           use_router: useRouter,
+          conversation_id: conversation.id,
           conversation_history: history
         }),
       });
