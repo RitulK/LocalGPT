@@ -3,13 +3,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
+from contextlib import asynccontextmanager
 import json
 
 import database
 from ollama_client import OllamaClient
 from router import ModelRouter
 
-app = FastAPI(title="LocalGPT API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup event
+    database.init_db()
+    yield
+    # Shutdown event (if needed)
+
+
+app = FastAPI(title="LocalGPT API", lifespan=lifespan)
 
 # CORS configuration
 app.add_middleware(
@@ -59,11 +69,6 @@ class MemoryCreate(BaseModel):
 
 def default_settings() -> dict:
     return Settings().dict()
-
-
-@app.on_event("startup")
-async def startup():
-    database.init_db()
 
 
 @app.get("/")
