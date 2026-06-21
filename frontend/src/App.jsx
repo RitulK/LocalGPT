@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatWindow from './components/ChatWindow';
+import KnowledgeBase from './components/KnowledgeBase';
 import ModelManagement from './components/ModelManagement';
 import SettingsPanel from './components/SettingsPanel';
 
@@ -15,6 +16,7 @@ const hydrateConversation = (conversation) => ({
     role: message.role,
     content: message.content,
     model: message.model,
+    sources: message.sources || [],
     timestamp: new Date(message.created_at)
   }))
 });
@@ -31,8 +33,12 @@ function App() {
     default_general_model: null,
     default_coding_model: null,
     default_reasoning_model: null,
-    router_enabled: true
+    router_enabled: true,
+    router_models: []
   });
+  const [documents, setDocuments] = useState([]);
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
+  const [useRag, setUseRag] = useState(false);
 
   const currentConversation = conversations.find(c => c.id === currentConversationId);
 
@@ -41,6 +47,7 @@ function App() {
     fetchConversations();
     fetchModels();
     fetchSettings();
+    fetchDocuments();
     checkOllamaHealth();
   }, []);
 
@@ -80,6 +87,16 @@ function App() {
     }
   };
 
+  const fetchDocuments = async () => {
+    try {
+      const response = await fetch(`${API_URL}/documents`);
+      const data = await response.json();
+      setDocuments(data.documents || []);
+    } catch (error) {
+      console.error('Failed to fetch documents:', error);
+    }
+  };
+
   const fetchConversations = async () => {
     try {
       const response = await fetch(`${API_URL}/conversations`);
@@ -106,6 +123,10 @@ function App() {
   };
 
   const createNewConversation = async () => {
+    if (currentConversation?.messages?.length === 0) {
+      return;
+    }
+
     try {
       const response = await fetch(`${API_URL}/conversations`, {
         method: 'POST',
@@ -247,6 +268,23 @@ function App() {
               onSelectModel={setSelectedModel}
               onToggleRouter={setUseRouter}
               apiUrl={API_URL}
+              documents={documents}
+              selectedDocumentIds={selectedDocumentIds}
+              onSelectedDocumentIdsChange={setSelectedDocumentIds}
+              useRag={useRag}
+              onToggleRag={setUseRag}
+            />
+          )}
+
+          {activeTab === 'knowledge' && (
+            <KnowledgeBase
+              apiUrl={API_URL}
+              documents={documents}
+              onRefresh={fetchDocuments}
+              selectedDocumentIds={selectedDocumentIds}
+              onSelectedDocumentIdsChange={setSelectedDocumentIds}
+              useRag={useRag}
+              onToggleRag={setUseRag}
             />
           )}
 

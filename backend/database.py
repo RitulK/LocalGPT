@@ -46,6 +46,7 @@ def init_db() -> None:
                 role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
                 content TEXT NOT NULL,
                 model TEXT,
+                sources TEXT,
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (conversation_id)
                     REFERENCES conversations(id)
@@ -67,12 +68,46 @@ def init_db() -> None:
                 updated_at TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                filename TEXT NOT NULL,
+                content_type TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                chunk_count INTEGER NOT NULL DEFAULT 0,
+                error TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS document_chunks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                document_id INTEGER NOT NULL,
+                chunk_index INTEGER NOT NULL,
+                page_number INTEGER,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (document_id)
+                    REFERENCES documents(id)
+                    ON DELETE CASCADE
+            );
+
             CREATE INDEX IF NOT EXISTS idx_messages_conversation_id
                 ON messages(conversation_id);
             CREATE INDEX IF NOT EXISTS idx_memories_kind
                 ON memories(kind);
+            CREATE INDEX IF NOT EXISTS idx_documents_status
+                ON documents(status);
+            CREATE INDEX IF NOT EXISTS idx_document_chunks_document_id
+                ON document_chunks(document_id);
             """
         )
+        message_columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(messages)").fetchall()
+        }
+        if "sources" not in message_columns:
+            conn.execute("ALTER TABLE messages ADD COLUMN sources TEXT")
 
 
 def list_conversations() -> List[Dict[str, Any]]:
@@ -143,14 +178,19 @@ def list_messages(conversation_id: int) -> List[Dict[str, Any]]:
     with get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, conversation_id, role, content, model, created_at
+            SELECT id, conversation_id, role, content, model, sources, created_at
             FROM messages
             WHERE conversation_id = ?
             ORDER BY id ASC
             """,
             (conversation_id,),
         ).fetchall()
-        return [row_to_dict(row) for row in rows]
+        messages = []
+        for row in rows:
+            message = row_to_dict(row)
+            message["sources"] = json.loads(message["sources"]) if message.get("sources") else []
+            messages.append(message)
+        return messages
 
 
 def add_message(
@@ -158,15 +198,23 @@ def add_message(
     role: str,
     content: str,
     model: Optional[str] = None,
+    sources: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     now = utc_now()
     with get_connection() as conn:
         cursor = conn.execute(
             """
-            INSERT INTO messages (conversation_id, role, content, model, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO messages (conversation_id, role, content, model, sources, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (conversation_id, role, content, model, now),
+            (
+                conversation_id,
+                role,
+                content,
+                model,
+                json.dumps(sources or []),
+                now,
+            ),
         )
         conn.execute(
             "UPDATE conversations SET updated_at = ? WHERE id = ?",
@@ -176,7 +224,9 @@ def add_message(
             "SELECT * FROM messages WHERE id = ?",
             (cursor.lastrowid,),
         ).fetchone()
-        return row_to_dict(row)
+        message = row_to_dict(row)
+        message["sources"] = json.loads(message["sources"]) if message.get("sources") else []
+        return message
 
 
 def clear_messages(conversation_id: int) -> None:
@@ -257,3 +307,139 @@ def delete_memory(memory_id: int) -> bool:
             (memory_id,),
         )
         return cursor.rowcount > 0
+
+
+def create_document(
+    filename: str,
+    content_type: str,
+    file_path: str,
+    status: str = "pending",
+) -> Dict[str, Any]:
+    now = utc_now()
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO documents
+                (filename, content_type, file_path, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (filename, content_type, file_path, status, now, now),
+        )
+        row = conn.execute(
+            "SELECT * FROM documents WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+        return row_to_dict(row)
+
+
+def update_document_file_path(document_id: int, file_path: str) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE documents
+            SET file_path = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (file_path, utc_now(), document_id),
+        )
+
+
+def update_document_status(
+    document_id: int,
+    status: str,
+    chunk_count: Optional[int] = None,
+    error: Optional[str] = None,
+) -> None:
+    assignments = ["status = ?", "updated_at = ?", "error = ?"]
+    values: List[Any] = [status, utc_now(), error]
+    if chunk_count is not None:
+        assignments.append("chunk_count = ?")
+        values.append(chunk_count)
+    values.append(document_id)
+
+    with get_connection() as conn:
+        conn.execute(
+            f"""
+            UPDATE documents
+            SET {", ".join(assignments)}
+            WHERE id = ?
+            """,
+            values,
+        )
+
+
+def get_document(document_id: int) -> Optional[Dict[str, Any]]:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM documents WHERE id = ?",
+            (document_id,),
+        ).fetchone()
+        return row_to_dict(row) if row else None
+
+
+def list_documents() -> List[Dict[str, Any]]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, filename, content_type, file_path, status, chunk_count,
+                   error, created_at, updated_at
+            FROM documents
+            ORDER BY updated_at DESC
+            """
+        ).fetchall()
+        return [row_to_dict(row) for row in rows]
+
+
+def delete_document(document_id: int) -> Optional[Dict[str, Any]]:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM documents WHERE id = ?",
+            (document_id,),
+        ).fetchone()
+        if not row:
+            return None
+        conn.execute(
+            "DELETE FROM documents WHERE id = ?",
+            (document_id,),
+        )
+        return row_to_dict(row)
+
+
+def replace_document_chunks(document_id: int, chunks: List[Dict[str, Any]]) -> None:
+    now = utc_now()
+    with get_connection() as conn:
+        conn.execute(
+            "DELETE FROM document_chunks WHERE document_id = ?",
+            (document_id,),
+        )
+        conn.executemany(
+            """
+            INSERT INTO document_chunks
+                (document_id, chunk_index, page_number, content, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    document_id,
+                    chunk["chunk_index"],
+                    chunk.get("page_number"),
+                    chunk["content"],
+                    now,
+                )
+                for chunk in chunks
+            ],
+        )
+
+
+def list_document_chunks(document_id: int) -> List[Dict[str, Any]]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, document_id, chunk_index, page_number, content, created_at
+            FROM document_chunks
+            WHERE document_id = ?
+            ORDER BY chunk_index ASC
+            """,
+            (document_id,),
+        ).fetchall()
+        return [row_to_dict(row) for row in rows]

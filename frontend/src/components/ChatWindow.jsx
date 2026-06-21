@@ -10,11 +10,13 @@ import {
   ChevronDown,
   Code2,
   Cpu,
+  Database,
   FileText,
   Route,
   Send,
   Sparkles,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react';
 
 const suggestions = [
@@ -47,15 +49,26 @@ export default function ChatWindow({
   models,
   onSelectModel,
   onToggleRouter,
-  apiUrl
+  apiUrl,
+  documents,
+  selectedDocumentIds,
+  useRag,
+  onToggleRag
 }) {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState('');
+  const [showSources, setShowSources] = useState(false);
   const messagesContainerRef = useRef(null);
   const textareaRef = useRef(null);
 
   const hasMessages = (conversation?.messages?.length || 0) > 0;
+
+  const allSources = hasMessages
+    ? conversation.messages
+        .filter((msg) => msg.role === 'assistant' && msg.sources && msg.sources.length > 0)
+        .flatMap((msg) => msg.sources)
+    : [];
 
   const scrollToBottom = (smooth = false) => {
     requestAnimationFrame(() => {
@@ -102,6 +115,7 @@ export default function ChatWindow({
       role: 'assistant',
       content: '',
       model: selectedModel,
+      sources: [],
       timestamp: new Date(),
       isStreaming: true
     });
@@ -118,7 +132,9 @@ export default function ChatWindow({
           model: useRouter ? null : selectedModel,
           use_router: useRouter,
           conversation_id: conversation.id,
-          conversation_history: history
+          conversation_history: history,
+          use_rag: useRag && selectedDocumentIds.length > 0,
+          document_ids: selectedDocumentIds
         })
       });
 
@@ -143,7 +159,11 @@ export default function ChatWindow({
           const data = JSON.parse(dataLine.slice(6));
           if (data.type === 'metadata') {
             actualModel = data.model;
-            onUpdateLastMessage(conversation.id, { model: actualModel });
+            onUpdateLastMessage(conversation.id, {
+              model: actualModel,
+              sources: data.sources || [],
+              ragUsed: data.rag_used
+            });
           } else if (data.type === 'content') {
             accumulatedContent += data.content;
             onUpdateLastMessage(conversation.id, {
@@ -232,10 +252,18 @@ export default function ChatWindow({
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="hidden items-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.035] px-3 py-1.5 text-xs text-[#9fb1ad] md:flex">
-            <Route className="h-3.5 w-3.5 text-[#55f3df]" />
-            {useRouter ? 'Router active' : selectedModel}
-          </div>
+          {hasMessages && allSources.length > 0 && (
+            <button
+              onClick={() => setShowSources(!showSources)}
+              className="rounded-xl border border-white/[0.07] bg-white/[0.035] p-2 text-[#80958f] transition hover:border-[#28ead8]/25 hover:bg-[#20dcca]/10 hover:text-[#8ffcf0] relative"
+              title="Show sources"
+            >
+              <FileText className="h-4 w-4" />
+              <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center rounded-full bg-[#20dcca] text-[#06211e] text-xs font-semibold">
+                {allSources.length}
+              </span>
+            </button>
+          )}
           {hasMessages && (
             <button
               onClick={onClearChat}
@@ -249,7 +277,8 @@ export default function ChatWindow({
         </div>
       </header>
 
-      <section ref={messagesContainerRef} className="relative z-10 flex-1 overflow-y-auto px-6">
+      <div className="relative flex flex-1 overflow-hidden">
+        <section ref={messagesContainerRef} className="relative z-10 flex-1 overflow-y-auto px-6">
         {!hasMessages ? (
           <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col justify-center py-10">
             <div className="mb-8 max-w-3xl">
@@ -296,6 +325,10 @@ export default function ChatWindow({
               onSelectModel={onSelectModel}
               useRouter={useRouter}
               onToggleRouter={onToggleRouter}
+              documents={documents}
+              selectedDocumentIds={selectedDocumentIds}
+              useRag={useRag}
+              onToggleRag={onToggleRag}
               large
             />
 
@@ -317,6 +350,42 @@ export default function ChatWindow({
           </div>
         )}
       </section>
+
+      {showSources && allSources.length > 0 && (
+        <aside className="relative z-10 w-80 border-l border-white/[0.06] bg-[#07100f]/60 overflow-y-auto backdrop-blur-xl">
+          <div className="sticky top-0 flex items-center justify-between border-b border-white/[0.06] bg-[#07100f]/80 px-4 py-3 backdrop-blur">
+            <h3 className="text-sm font-semibold text-white">Sources ({allSources.length})</h3>
+            <button
+              onClick={() => setShowSources(false)}
+              className="rounded p-1 text-[#80958f] transition hover:bg-white/[0.06] hover:text-[#8ffcf0]"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="space-y-2 p-4">
+            {allSources.map((source, idx) => (
+              <div
+                key={`${source.document_id}-${source.chunk_index}-${source.source_index}`}
+                className="rounded-lg border border-white/[0.06] bg-[#0b1716] p-3 text-xs hover:border-[#28ead8]/25 transition"
+              >
+                <div className="mb-1 flex items-start gap-2">
+                  <span className="flex-shrink-0 rounded-full bg-[#20dcca]/12 px-1.5 py-0.5 text-[#8ffcf0] font-semibold">
+                    [{source.source_index}]
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-[#dce9e5] truncate">{source.filename}</div>
+                    {source.page_number && (
+                      <div className="text-[#667b76]">page {source.page_number}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-1 text-[#a9bbb6] leading-4 line-clamp-3">{source.snippet}</div>
+              </div>
+            ))}
+          </div>
+        </aside>
+      )}
+      </div>
 
       {error && (
         <div className="relative z-20 border-t border-red-400/20 bg-red-400/8 px-8 py-3 text-sm text-red-200">
@@ -340,8 +409,10 @@ export default function ChatWindow({
               models={models}
               selectedModel={selectedModel}
               onSelectModel={onSelectModel}
-              useRouter={useRouter}
-              onToggleRouter={onToggleRouter}
+              documents={documents}
+              selectedDocumentIds={selectedDocumentIds}
+              useRag={useRag}
+              onToggleRag={onToggleRag}
             />
           </div>
         </footer>
@@ -360,10 +431,16 @@ function Composer({
   models,
   selectedModel,
   onSelectModel,
-  useRouter,
-  onToggleRouter,
+  documents,
+  selectedDocumentIds,
+  useRag,
+  onToggleRag,
   large = false
 }) {
+  const selectedReadyCount = selectedDocumentIds.filter((id) =>
+    documents.some((document) => document.id === id && document.status === 'ready')
+  ).length;
+
   return (
     <form
       onSubmit={handleSubmit}
@@ -388,22 +465,27 @@ function Composer({
           <ModelPicker
             models={models}
             selectedModel={selectedModel}
-            useRouter={useRouter}
             isStreaming={isStreaming}
             onSelectModel={onSelectModel}
-            onToggleRouter={onToggleRouter}
           />
           <button
             type="button"
-            onClick={() => onToggleRouter(!useRouter)}
-            className={`inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-sm transition ${
-              useRouter
+            onClick={() => onToggleRag(!useRag)}
+            disabled={selectedReadyCount === 0}
+            className={`inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              useRag && selectedReadyCount > 0
                 ? 'border-[#28ead8]/20 bg-[#20dcca]/10 text-[#8ffcf0]'
                 : 'border-white/[0.08] bg-white/[0.035] text-[#8da19c]'
             }`}
+            title="Use selected knowledge documents"
           >
-            <Sparkles className="h-3.5 w-3.5" />
-            Router
+            <Database className="h-3.5 w-3.5" />
+            Knowledge
+            {selectedReadyCount > 0 && (
+              <span className="rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[10px]">
+                {selectedReadyCount}
+              </span>
+            )}
           </button>
         </div>
         <button
@@ -422,14 +504,12 @@ function Composer({
 function ModelPicker({
   models,
   selectedModel,
-  useRouter,
   isStreaming,
-  onSelectModel,
-  onToggleRouter
+  onSelectModel
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const pickerRef = useRef(null);
-  const activeLabel = useRouter || selectedModel === 'auto' ? 'Auto router' : selectedModel;
+  const activeLabel = selectedModel || 'Select model';
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -444,7 +524,6 @@ function ModelPicker({
 
   const chooseModel = (value) => {
     onSelectModel(value);
-    onToggleRouter(value === 'auto');
     setIsOpen(false);
   };
 
@@ -459,11 +538,7 @@ function ModelPicker({
         aria-expanded={isOpen}
       >
         <span className="flex min-w-0 items-center gap-2">
-          {useRouter || selectedModel === 'auto' ? (
-            <Sparkles className="h-4 w-4 flex-shrink-0 text-[#71fff1]" />
-          ) : (
-            <Cpu className="h-4 w-4 flex-shrink-0 text-[#71fff1]" />
-          )}
+          <Cpu className="h-4 w-4 flex-shrink-0 text-[#71fff1]" />
           <span className="truncate">{activeLabel}</span>
         </span>
         <ChevronDown className={`h-4 w-4 flex-shrink-0 text-[#78908a] transition ${isOpen ? 'rotate-180' : ''}`} />
@@ -474,16 +549,6 @@ function ModelPicker({
           className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-[300px] overflow-hidden rounded-2xl border border-[#28ead8]/22 bg-[#07100f] p-1.5 shadow-[0_28px_90px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.035),inset_0_1px_0_rgba(255,255,255,0.05)]"
           role="listbox"
         >
-          <ModelOption
-            active={useRouter || selectedModel === 'auto'}
-            icon={Sparkles}
-            title="Auto router"
-            detail="Pick the model per prompt"
-            onClick={() => chooseModel('auto')}
-          />
-
-          <div className="my-1 h-px bg-white/[0.06]" />
-
           <div className="max-h-60 overflow-y-auto pr-1">
             {models.length === 0 ? (
               <div className="px-3 py-4 text-sm text-[#78908a]">No local models found</div>
@@ -491,7 +556,7 @@ function ModelPicker({
               models.map((model) => (
                 <ModelOption
                   key={model.name}
-                  active={!useRouter && selectedModel === model.name}
+                  active={selectedModel === model.name}
                   icon={Cpu}
                   title={model.name}
                   detail={formatModelSize(model.size)}

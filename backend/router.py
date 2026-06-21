@@ -24,22 +24,45 @@ class ModelRouter:
     # Model Capability Registry - Define strengths of each model
     MODEL_CAPABILITIES = {
         "qwen2.5-coder:7b": {
-            "speed": 7,          # Response speed (1-10)
-            "reasoning": 7,      # Logical reasoning ability
-            "coding": 10,        # Code generation/debugging
-            "context": 8,        # Context understanding
-            "writing": 6,        # Creative/technical writing
-            "translation": 5,    # Language translation
-            "general": 7,        # General conversation
+            "speed": 7,
+            "reasoning": 7,
+            "coding": 10,
+            "context": 8,
+            "writing": 6,
+            "translation": 5,
+            "general": 7,
+            "provider": "ollama"
         },
         "qwen:4b": {
-            "speed": 9,          # Faster due to smaller size
-            "reasoning": 6,      # Good reasoning
-            "coding": 7,         # Decent coding ability
-            "context": 8,        # Good context understanding
-            "writing": 8,        # Better at writing
-            "translation": 7,    # Better translation
+            "speed": 9,
+            "reasoning": 6,
+            "coding": 7,
+            "context": 8,
+            "writing": 8,
+            "translation": 7,
+            "general": 9,
+            "provider": "ollama"
+        },
+        "Llama-3_3-Nemotron-Super-49B-v1_5": {
+            "speed": 5,
+            "reasoning": 9,
+            "coding": 9,
+            "context": 10,
+            "writing": 9,
+            "translation": 8,
+            "general": 8,
+            "provider": "vllm"
+        },
+        "nvidia/nemotron-3-ultra-550b-a55b": {
+            "speed": 4,          # Slower due to massive 550B size, but highest quality
+            "reasoning": 10,     # Exceptional reasoning with thinking capability
+            "coding": 10,        # Expert code generation
+            "context": 10,       # Superior context understanding
+            "writing": 10,       # Excellent writing quality
+            "translation": 9,    # Very good translation
             "general": 9,        # Excellent general purpose
+            "provider": "nvidia",
+            "has_thinking": True # Supports extended thinking
         }
     }
     
@@ -129,13 +152,25 @@ class ModelRouter:
         """
         # Detect question type
         question_type = self._detect_question_type(prompt)
-        
+
+        # Determine available models based on configured router model list
+        available_models = self._get_available_models(settings)
+
         # Calculate scores for each model
-        scores = self._calculate_model_scores(prompt, question_type)
-        
+        scores = self._calculate_model_scores(prompt, question_type, available_models)
+
         # Select model with highest score
         best_model = max(scores.items(), key=lambda x: x[1])[0]
-        
+
+        # Honor explicit default role models when configured
+        if settings:
+            if question_type == QuestionType.CODING and settings.default_coding_model in available_models:
+                return settings.default_coding_model
+            if question_type == QuestionType.REASONING and settings.default_reasoning_model in available_models:
+                return settings.default_reasoning_model
+            if question_type in {QuestionType.GENERAL, QuestionType.QA, QuestionType.INSTRUCTION} and settings.default_general_model in available_models:
+                return settings.default_general_model
+
         return best_model
     
     def _detect_question_type(self, prompt: str) -> QuestionType:
@@ -224,13 +259,31 @@ class ModelRouter:
                     return True
         return False
     
-    def _calculate_model_scores(self, prompt: str, question_type: QuestionType) -> Dict[str, float]:
+    def _get_available_models(self, settings=None) -> Dict[str, dict]:
+        """
+        Get the router's available models based on backend settings.
+        """
+        if settings and getattr(settings, "router_models", None):
+            requested_models = [m for m in settings.router_models if m]
+            if requested_models:
+                available = {
+                    name: caps
+                    for name, caps in self.MODEL_CAPABILITIES.items()
+                    if name in requested_models
+                }
+                if available:
+                    return available
+
+        return self.MODEL_CAPABILITIES
+
+    def _calculate_model_scores(self, prompt: str, question_type: QuestionType, models: Dict[str, dict]) -> Dict[str, float]:
         """
         Calculate scores for each available model
         
         Args:
             prompt: User's input prompt
             question_type: Detected question type
+            models: Map of model names to capabilities
         
         Returns:
             Dictionary mapping model names to scores
@@ -239,7 +292,7 @@ class ModelRouter:
         prompt_lower = prompt.lower()
         prompt_length = len(prompt.split())
         
-        for model_name, capabilities in self.MODEL_CAPABILITIES.items():
+        for model_name, capabilities in models.items():
             score = 0.0
             
             # Base score from question type capability match
@@ -325,7 +378,8 @@ class ModelRouter:
             Human-readable explanation
         """
         question_type = self._detect_question_type(prompt)
-        scores = self._calculate_model_scores(prompt, question_type)
+        available_models = self._get_available_models(settings)
+        scores = self._calculate_model_scores(prompt, question_type, available_models)
         selected_model = max(scores.items(), key=lambda x: x[1])[0]
         
         explanations = {

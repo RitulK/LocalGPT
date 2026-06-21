@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Brain, Code2, MessageCircle, RotateCcw, Route, Save, SlidersHorizontal } from 'lucide-react';
+import { Brain, Code2, MessageCircle, RotateCcw, Save, SlidersHorizontal } from 'lucide-react';
 
 const defaults = {
   default_general_model: '',
   default_coding_model: '',
   default_reasoning_model: '',
-  router_enabled: true
+  router_enabled: true,
+  router_models: []
 };
 
 export default function SettingsPanel({ settings, onUpdateSettings, models, apiUrl }) {
+  const [activeTab, setActiveTab] = useState('router');
   const [localSettings, setLocalSettings] = useState({ ...defaults, ...settings });
   const [saved, setSaved] = useState(false);
 
@@ -43,127 +45,163 @@ export default function SettingsPanel({ settings, onUpdateSettings, models, apiU
       default_general_model: firstModel,
       default_coding_model: models.find((model) => model.name.toLowerCase().includes('coder'))?.name || firstModel,
       default_reasoning_model: firstModel,
-      router_enabled: true
+      router_enabled: true,
+      router_models: models.map((model) => model.name)
     });
   };
 
   return (
     <main className="h-full overflow-y-auto px-8 py-7">
       <div className="mx-auto max-w-5xl">
-        <div className="mb-8">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#28ead8]/20 bg-[#20dcca]/10 px-3 py-1.5 text-xs text-[#8ffcf0]">
+        <div className="mb-8 flex flex-col gap-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#28ead8]/20 bg-[#20dcca]/10 px-3 py-1.5 text-xs text-[#8ffcf0]">
             <SlidersHorizontal className="h-3.5 w-3.5" />
             Workspace preferences
           </div>
-          <h2 className="text-4xl font-semibold tracking-[-0.03em] text-white">Settings</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8da19c]">
-            Configure routing behavior and default model roles. These settings are now stored in SQLite.
-          </p>
+          <div>
+            <h2 className="text-4xl font-semibold tracking-[-0.03em] text-white">Settings</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8da19c]">
+              Configure the router models and default model roles used by LocalGPT.
+            </p>
+          </div>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
-          <section className="space-y-5">
-            <div className="rounded-3xl border border-white/[0.08] bg-[#07100f]/72 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
-              <div className="mb-5 flex items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-white">Smart router</h3>
-                  <p className="mt-1 text-sm text-[#819690]">Let LocalGPT pick a model based on the prompt type.</p>
+        <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
+          <div className="space-y-3 rounded-3xl border border-white/[0.08] bg-[#07100f]/72 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+            <TabButton
+              label="Router models"
+              active={activeTab === 'router'}
+              onClick={() => setActiveTab('router')}
+            />
+            <TabButton
+              label="Default roles"
+              active={activeTab === 'roles'}
+              onClick={() => setActiveTab('roles')}
+            />
+          </div>
+
+          <div className="space-y-5">
+            {activeTab === 'router' ? (
+              <section className="rounded-3xl border border-white/[0.08] bg-[#07100f]/72 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+                <div className="mb-5 flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Router model list</h3>
+                    <p className="mt-1 text-sm text-[#819690]">Select which installed models the router may use.</p>
+                  </div>
+                  <button
+                    onClick={() => setLocalSettings({
+                      ...localSettings,
+                      router_models: models.map((model) => model.name)
+                    })}
+                    className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-sm text-[#cbdad6] transition hover:border-[#28ead8]/25 hover:text-[#8ffcf0]"
+                  >
+                    Select all
+                  </button>
                 </div>
-                <button
-                  onClick={() => setLocalSettings({
-                    ...localSettings,
-                    router_enabled: !localSettings.router_enabled
-                  })}
-                  className={`relative h-8 w-14 rounded-full transition ${
-                    localSettings.router_enabled ? 'bg-[#20dcca]' : 'bg-white/[0.12]'
-                  }`}
-                  title="Toggle router"
-                >
-                  <span
-                    className={`absolute top-1 h-6 w-6 rounded-full bg-white transition ${
-                      localSettings.router_enabled ? 'left-7' : 'left-1'
-                    }`}
+
+                <div className="grid gap-3">
+                  {models.length === 0 ? (
+                    <div className="rounded-2xl border border-white/[0.08] bg-[#0b1716] p-4 text-sm text-[#819690]">No local models found.</div>
+                  ) : (
+                    models.map((model) => (
+                      <label
+                        key={model.name}
+                        className="flex cursor-pointer items-center rounded-2xl border border-white/[0.08] bg-[#0b1716] px-4 py-3 text-sm transition hover:border-[#28ead8]/25"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={localSettings.router_models?.includes(model.name) || false}
+                          onChange={(e) => {
+                            const selected = new Set(localSettings.router_models || []);
+                            if (e.target.checked) {
+                              selected.add(model.name);
+                            } else {
+                              selected.delete(model.name);
+                            }
+                            setLocalSettings({
+                              ...localSettings,
+                              router_models: Array.from(selected)
+                            });
+                          }}
+                          className="mr-3 h-4 w-4 rounded border-white/[0.15] bg-transparent text-[#20dcca] focus:ring-[#20dcca]"
+                        />
+                        <span className="truncate">{model.name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </section>
+            ) : (
+              <section className="rounded-3xl border border-white/[0.08] bg-[#07100f]/72 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+                <h3 className="text-lg font-semibold text-white">Default model roles</h3>
+                <p className="mt-1 text-sm text-[#819690]">Choose which installed models should be preferred by each route.</p>
+
+                <div className="mt-5 grid gap-4">
+                  <ModelSelect
+                    label="General conversations"
+                    value={localSettings.default_general_model || ''}
+                    models={models}
+                    onChange={(value) => setLocalSettings({ ...localSettings, default_general_model: value })}
                   />
-                </button>
-              </div>
-              <div className="grid gap-3 md:grid-cols-3">
-                <Role icon={Code2} label="Coding" text="Debugging and implementation prompts." />
-                <Role icon={Brain} label="Reasoning" text="Analysis, planning, and explanations." />
-                <Role icon={MessageCircle} label="General" text="Everyday chat and lightweight tasks." />
-              </div>
-            </div>
+                  <ModelSelect
+                    label="Coding and debugging"
+                    value={localSettings.default_coding_model || ''}
+                    models={models}
+                    onChange={(value) => setLocalSettings({ ...localSettings, default_coding_model: value })}
+                  />
+                  <ModelSelect
+                    label="Reasoning and analysis"
+                    value={localSettings.default_reasoning_model || ''}
+                    models={models}
+                    onChange={(value) => setLocalSettings({ ...localSettings, default_reasoning_model: value })}
+                  />
+                </div>
+              </section>
+            )}
 
             <div className="rounded-3xl border border-white/[0.08] bg-[#07100f]/72 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
-              <h3 className="text-lg font-semibold text-white">Default model roles</h3>
-              <p className="mt-1 text-sm text-[#819690]">Choose which installed models should be preferred by each route.</p>
-
-              <div className="mt-5 grid gap-4">
-                <ModelSelect
-                  label="General conversations"
-                  value={localSettings.default_general_model || ''}
-                  models={models}
-                  onChange={(value) => setLocalSettings({ ...localSettings, default_general_model: value })}
-                />
-                <ModelSelect
-                  label="Coding and debugging"
-                  value={localSettings.default_coding_model || ''}
-                  models={models}
-                  onChange={(value) => setLocalSettings({ ...localSettings, default_coding_model: value })}
-                />
-                <ModelSelect
-                  label="Reasoning and analysis"
-                  value={localSettings.default_reasoning_model || ''}
-                  models={models}
-                  onChange={(value) => setLocalSettings({ ...localSettings, default_reasoning_model: value })}
-                />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Save settings</h3>
+                  <p className="mt-1 text-sm text-[#819690]">Persist your router model list and default model role preferences.</p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={handleSave}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#20dcca] px-4 py-3 text-sm font-semibold text-[#06211e] shadow-[0_18px_45px_rgba(32,220,202,0.18)] transition hover:bg-[#68f8ea]"
+                  >
+                    <Save className="h-4 w-4" />
+                    {saved ? 'Saved' : 'Save settings'}
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-sm font-semibold text-[#cbdad6] transition hover:border-[#28ead8]/25 hover:text-[#8ffcf0]"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Reset defaults
+                  </button>
+                </div>
               </div>
             </div>
-          </section>
-
-          <aside className="rounded-3xl border border-white/[0.08] bg-[#07100f]/72 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
-            <div className="mb-5 grid h-12 w-12 place-items-center rounded-2xl bg-[#20dcca]/10 text-[#7ffff0]">
-              <Route className="h-5 w-5" />
-            </div>
-            <h3 className="text-lg font-semibold text-white">Routing logic</h3>
-            <p className="mt-2 text-sm leading-6 text-[#819690]">
-              The router scores prompts for coding, debugging, writing, translation, Q&A, reasoning, and general chat.
-            </p>
-            <div className="mt-5 space-y-3 text-sm text-[#cbdad6]">
-              <LogicItem text="Code keywords and snippets route to coding models." />
-              <LogicItem text="Analytical prompts route to reasoning-capable models." />
-              <LogicItem text="Short everyday prompts prefer faster general models." />
-            </div>
-
-            <div className="mt-8 flex flex-col gap-3">
-              <button
-                onClick={handleSave}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#20dcca] px-4 py-3 text-sm font-semibold text-[#06211e] shadow-[0_18px_45px_rgba(32,220,202,0.18)] transition hover:bg-[#68f8ea]"
-              >
-                <Save className="h-4 w-4" />
-                {saved ? 'Saved' : 'Save settings'}
-              </button>
-              <button
-                onClick={handleReset}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-sm font-semibold text-[#cbdad6] transition hover:border-[#28ead8]/25 hover:text-[#8ffcf0]"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Reset defaults
-              </button>
-            </div>
-          </aside>
+          </div>
         </div>
       </div>
     </main>
   );
 }
 
-function Role({ icon: Icon, label, text }) {
+function TabButton({ label, active, onClick }) {
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-      <Icon className="mb-3 h-5 w-5 text-[#70fff0]" />
-      <div className="text-sm font-semibold text-white">{label}</div>
-      <div className="mt-1 text-xs leading-5 text-[#819690]">{text}</div>
-    </div>
+    <button
+      onClick={onClick}
+      className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold transition ${
+        active
+          ? 'border border-[#28ead8]/20 bg-[#20dcca]/10 text-[#e7fff8]'
+          : 'border border-white/[0.08] bg-[#07100f]/70 text-[#8da19c] hover:border-[#28ead8]/15 hover:bg-[#0f1e1c] hover:text-[#edf7f4]'
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -184,14 +222,5 @@ function ModelSelect({ label, value, models, onChange }) {
         ))}
       </select>
     </label>
-  );
-}
-
-function LogicItem({ text }) {
-  return (
-    <div className="flex gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3">
-      <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-[#20dcca]" />
-      <span>{text}</span>
-    </div>
   );
 }

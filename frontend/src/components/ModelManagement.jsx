@@ -19,9 +19,14 @@ export default function ModelManagement({ models, onRefresh, selectedModel, onSe
     [models]
   );
 
-  const filteredModels = models.filter((model) =>
-    model.name.toLowerCase().includes(query.toLowerCase())
-  );
+  const filteredModels = models
+    .filter((model) => {
+      const lower = model.name.toLowerCase();
+      return !lower.includes('embed');
+    })
+    .filter((model) =>
+      model.name.toLowerCase().includes(query.toLowerCase())
+    );
 
   const handleRefresh = async () => {
     setRefreshing(true);

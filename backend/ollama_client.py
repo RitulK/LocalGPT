@@ -143,6 +143,49 @@ class OllamaClient:
                 raise Exception("Cannot connect to Ollama. Make sure Ollama is running.")
             except Exception as e:
                 raise Exception(f"Error during chat: {str(e)}")
+
+    async def embed(self, model: str, inputs: List[str]) -> List[List[float]]:
+        """
+        Generate embeddings with Ollama's /api/embed endpoint.
+
+        Args:
+            model: Embedding model name to use
+            inputs: Text values to embed
+
+        Returns:
+            A list of embedding vectors, one for each input
+        """
+        if not inputs:
+            return []
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            payload = {
+                "model": model,
+                "input": inputs,
+            }
+
+            try:
+                response = await client.post(
+                    f"{self.base_url}/api/embed",
+                    json=payload,
+                )
+                response.raise_for_status()
+                data = response.json()
+                embeddings = data.get("embeddings")
+                if not isinstance(embeddings, list):
+                    raise Exception("Ollama embedding response did not include embeddings.")
+                return embeddings
+            except httpx.HTTPStatusError as e:
+                error_msg = f"HTTP {e.response.status_code}"
+                try:
+                    error_msg += f" - {e.response.text}"
+                except:
+                    pass
+                raise Exception(f"Ollama embedding API error: {error_msg}")
+            except httpx.ConnectError:
+                raise Exception("Cannot connect to Ollama. Make sure Ollama is running.")
+            except Exception as e:
+                raise Exception(f"Error during embedding: {str(e)}")
     
     async def check_model_exists(self, model_name: str) -> bool:
         """Check if a specific model is installed"""

@@ -1,6 +1,7 @@
 import {
   Bot,
   Database,
+  FileText,
   MessageCircle,
   Plus,
   RefreshCw,
@@ -27,6 +28,7 @@ export default function Sidebar({
 }) {
   const navItems = [
     { id: 'chat', label: 'Chat', icon: MessageCircle },
+    { id: 'knowledge', label: 'Knowledge', icon: FileText },
     { id: 'models', label: 'Models', icon: Database },
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
@@ -139,20 +141,6 @@ export default function Sidebar({
       </div>
 
       <div className="border-t border-white/[0.08] p-4">
-        <button
-          onClick={() => onToggleRouter(!useRouter)}
-          className={`mb-3 flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition ${
-            useRouter
-              ? 'border-[#28ead8]/18 bg-[#20dcca]/9 text-[#91fff3]'
-              : 'border-white/[0.07] bg-white/[0.035] text-[#8da19c]'
-          }`}
-        >
-          <span className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            Router mode
-          </span>
-          <span className={`h-2 w-2 rounded-full ${useRouter ? 'bg-[#20dcca]' : 'bg-[#637772]'}`} />
-        </button>
         <div className="flex items-center justify-between text-xs text-[#657974]">
           <span>{models.length} local models</span>
           <span>SQLite memory</span>

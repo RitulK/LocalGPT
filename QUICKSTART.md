@@ -36,6 +36,7 @@ The script will:
 ```bash
 ollama pull llama3.2
 ollama pull qwen2.5-coder
+ollama pull nomic-embed-text
 ```
 
 #### Step 2: Setup Backend

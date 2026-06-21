@@ -10,6 +10,8 @@ services:
     environment:
       # Use native Ollama on the macOS host so it can use Apple Metal acceleration.
       - OLLAMA_HOST=http://host.docker.internal:11434
+      - MODEL=qwen2:7b
+      - NVIDIA_API_KEY=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
     restart: unless-stopped
     volumes:
       - ./backend:/app

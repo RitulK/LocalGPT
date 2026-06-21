@@ -7,6 +7,8 @@ __pycache__/
 .env
 .venv
 *.log
+uploads/
+chroma/
 *.db
 *.db-shm
 *.db-wal
