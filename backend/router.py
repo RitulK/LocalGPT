@@ -409,4 +409,5 @@ class ModelRouter:
             Dictionary of model scores
         """
         question_type = self._detect_question_type(prompt)
-        return self._calculate_model_scores(prompt, question_type)
+        available_models = self._get_available_models()
+        return self._calculate_model_scores(prompt, question_type, available_models)

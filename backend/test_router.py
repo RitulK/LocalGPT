@@ -1,28 +1,28 @@
+import unittest
+
 from router import ModelRouter
 
-r = ModelRouter()
 
-test_cases = [
-    ("write a python function to sort a list", "Coding task"),
-    ("what is the capital of France?", "General Q&A"),
-    ("explain quantum mechanics", "Reasoning task"),
-    ("fix this bug: TypeError undefined", "Debugging"),
-    ("write a story about a dragon", "Writing"),
-    ("hello how are you", "General chat"),
-]
+class ModelRouterTest(unittest.TestCase):
+    def setUp(self):
+        self.router = ModelRouter()
 
-print("🧪 Testing Advanced Model Router\n")
-print("=" * 70)
+    def test_route_selects_a_configured_model(self):
+        selected = self.router.route("write a python function to sort a list")
 
-for prompt, description in test_cases:
-    selected = r.route(prompt)
-    reasoning = r.get_routing_reasoning(prompt)
-    scores = r.get_all_scores(prompt)
-    
-    print(f"\n📝 {description}: \"{prompt}\"")
-    print(f"   → Selected: {selected}")
-    print(f"   → Reason: {reasoning}")
-    print(f"   → Scores: qwen2.5-coder={scores['qwen2.5-coder:7b']:.2f}, qwen4b={scores['qwen:4b']:.2f}")
-    print("-" * 70)
+        self.assertIn(selected, self.router.MODEL_CAPABILITIES)
 
-print("\n✅ All tests completed!")
+    def test_get_all_scores_returns_scores_for_available_models(self):
+        scores = self.router.get_all_scores("explain quantum mechanics")
+
+        self.assertTrue(scores)
+        self.assertTrue(set(scores).issubset(self.router.MODEL_CAPABILITIES))
+
+    def test_routing_reasoning_describes_selection(self):
+        reasoning = self.router.get_routing_reasoning("fix this TypeError")
+
+        self.assertIn("Detected debugging request", reasoning)
+
+
+if __name__ == "__main__":
+    unittest.main()
