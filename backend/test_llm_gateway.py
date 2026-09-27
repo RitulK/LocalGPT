@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import AsyncMock, patch, MagicMock
 
+from app.domain.models import ContentEvent, ReasoningEvent
 from app.infrastructure.llm.gateway import LLMGateway, parse_model_spec
 from langchain_core.messages import AIMessageChunk
 
@@ -32,10 +33,11 @@ class LLMGatewayTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(nvidia_client.model_name, "nvidia/nemotron-4-34b")
 
     @patch.object(LLMGateway, "_get_client")
-    async def test_stream_chat_streams_chunks(self, mock_get_client):
+    async def test_stream_chat_streams_typed_events(self, mock_get_client):
         mock_client = MagicMock()
 
         async def fake_astream(messages):
+            yield AIMessageChunk(content="", additional_kwargs={"reasoning_content": "Thinking..."})
             yield AIMessageChunk(content="Hello")
             yield AIMessageChunk(content=" world!")
 
@@ -43,11 +45,15 @@ class LLMGatewayTest(unittest.IsolatedAsyncioTestCase):
         mock_get_client.return_value = mock_client
 
         messages = [{"role": "user", "content": "Hi"}]
-        chunks = []
-        async for chunk in self.gateway.stream_chat("ollama:qwen:4b", messages):
-            chunks.append(chunk)
+        events = []
+        async for event in self.gateway.stream_chat("ollama:qwen:4b", messages):
+            events.append(event)
 
-        self.assertEqual(chunks, ["Hello", " world!"])
+        self.assertEqual(len(events), 3)
+        self.setIsInstance(events[0], ReasoningEvent) if hasattr(self, 'setIsInstance') else self.assertIsInstance(events[0], ReasoningEvent)
+        self.assertEqual(events[0].content, "Thinking...")
+        self.assertIsInstance(events[1], ContentEvent)
+        self.assertEqual(events[1].content, "Hello")
 
     @patch("app.infrastructure.llm.gateway.OllamaEmbeddings")
     async def test_embed_calls_ollama_embeddings(self, mock_embeddings_cls):

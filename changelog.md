@@ -4,6 +4,14 @@ All notable repository changes are recorded here, newest first.
 
 ## 2026-09-27
 
+### P2-S3 Typed SSE events (discriminated union)
+
+- Created `app/domain/models.py` with `StreamEvent` discriminated union models (`MetadataEvent`, `ContentEvent`, `ReasoningEvent`, `DoneEvent`, `ErrorEvent`).
+- Updated `LLMGateway.stream_chat` to yield typed events (`ContentEvent`, `ReasoningEvent`) and extract `reasoning_content` delta attributes.
+- Refactored `ChatService.stream_chat` to emit serialized JSON events using `model_dump_json()`.
+- Verified `rg "\[REASONING\]" app/` and `rg "\[/REASONING\]" app/` both return 0 hits.
+- All 22 pytest unit tests pass cleanly.
+
 ### P2-S2 Provider-name convention & registry
 
 - Implemented `provider:model@host` parsing logic (`parse_model_spec`) in `LLMGateway`.

@@ -1,6 +1,7 @@
 import json
 from typing import AsyncIterator, Optional
 
+from app.domain.models import ContentEvent, DoneEvent, MetadataEvent, ReasoningEvent
 from app.domain.rag import format_rag_context, public_sources
 from app.domain.schemas import ChatRequest, Settings
 from app.infrastructure.db.connection import get_connection
@@ -66,22 +67,26 @@ class ChatService:
                 conversation_repo.update_title(conn, cid, title)
 
         accumulated_content = ""
-        metadata = {
-            "type": "metadata",
-            "model": selected_model,
-            "routing_used": request.use_router,
-            "conversation_id": cid,
-            "rag_used": bool(rag_sources),
-            "sources": public_sources(rag_sources),
-            "thinking_enabled": False,
-        }
-        yield f"data: {json.dumps(metadata)}\n\n"
+        metadata_event = MetadataEvent(
+            model=selected_model,
+            routing_used=request.use_router,
+            conversation_id=cid,
+            rag_used=bool(rag_sources),
+            sources=public_sources(rag_sources),
+            thinking_enabled=False,
+        )
+        yield f"data: {metadata_event.model_dump_json()}\n\n"
 
-        async for chunk in llm_gateway.stream_chat(selected_model, messages):
-            if not chunk:
-                continue
-            accumulated_content += chunk
-            yield f"data: {json.dumps({'type': 'content', 'content': chunk})}\n\n"
+        async for event in llm_gateway.stream_chat(selected_model, messages):
+            if isinstance(event, ReasoningEvent):
+                yield f"data: {event.model_dump_json()}\n\n"
+            elif isinstance(event, ContentEvent):
+                accumulated_content += event.content
+                yield f"data: {event.model_dump_json()}\n\n"
+            elif isinstance(event, str):
+                accumulated_content += event
+                content_event = ContentEvent(content=event)
+                yield f"data: {content_event.model_dump_json()}\n\n"
 
         if accumulated_content:
             with get_connection() as conn:
@@ -89,4 +94,5 @@ class ChatService:
                     conn, cid, "assistant", accumulated_content,
                     selected_model, public_sources(rag_sources),
                 )
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        done_event = DoneEvent()
+        yield f"data: {done_event.model_dump_json()}\n\n"

@@ -125,7 +125,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 ### [P2-S3] Typed SSE events (no more `[REASONING]` strings)
 
 - **ID:** P2-S3
-- **Status:** todo
+- **Status:** completed
 - **Phase:** 2
 - **Priority:** medium
 - **Estimate:** S (~1 h)
@@ -133,10 +133,10 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 - **Tags:** #refactor #sse #types
 - **Description:** Define `StreamEvent` Pydantic model in `app/domain/models.py` as a discriminated union over `metadata | content | reasoning | done | error`. Update `LLMGateway` to yield typed events. For NVIDIA, read `delta.reasoning_content` from `ChatOpenAI` and emit `{type: "reasoning", content: ...}`. Delete the string-parsing branch in `ChatService`.
 - **Acceptance criteria:**
-  - [ ] `app/domain/models.py` defines `StreamEvent` as a discriminated union
-  - [ ] `rg "\[REASONING\]" app/` returns 0 hits
-  - [ ] `rg "\[/REASONING\]" app/` returns 0 hits
-  - [ ] NVIDIA model's reasoning panel populates without parse errors (manual test)
+  - [x] `app/domain/models.py` defines `StreamEvent` as a discriminated union
+  - [x] `rg "\[REASONING\]" app/` returns 0 hits
+  - [x] `rg "\[/REASONING\]" app/` returns 0 hits
+  - [x] NVIDIA model's reasoning panel populates without parse errors (manual test)
 - **Verification:** Manual streaming test on NVIDIA model; trace one SSE chunk and confirm it's a JSON dict with `type` field, not a delimiter string.
 
 ---
@@ -347,7 +347,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 | Phase | Stories | Status |
 |---|---|---|
 | 1 — Layer the backend | P1-S1, P1-S2, P1-S3 | Done |
-| 2 — Replace providers | P2-S1, P2-S2, P2-S3 | in-progress |
+| 2 — Replace providers | P2-S1, P2-S2, P2-S3 | Done |
 | 3 — RAG simplification | P3-S1, P3-S2 | not started |
 | 4 — Remove router | P4-S1 | not started |
 | 5 — Memory works | P5-S1, P5-S2 | not started |

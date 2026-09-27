@@ -1,38 +1,29 @@
 import os
-from typing import AsyncIterator, Dict, List, Optional, Tuple, Any
+from typing import Any, AsyncIterator, Dict, List, Optional, Tuple, Union
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_openai import ChatOpenAI
 
+from app.domain.models import ContentEvent, ReasoningEvent
+
 
 def parse_model_spec(model_spec: str) -> Tuple[str, str, Optional[str]]:
-    """Parses model specification in 'provider:model@host' format."""
     if not model_spec:
         return "ollama", "", None
-    host = None
-    if "@" in model_spec:
-        model_part, host = model_spec.rsplit("@", 1)
-    else:
-        model_part = model_spec
+    host = model_spec.rsplit("@", 1)[1] if "@" in model_spec else None
+    model_part = model_spec.rsplit("@", 1)[0] if "@" in model_spec else model_spec
     known = {"ollama", "openai", "vllm", "nvidia"}
-    if ":" in model_part:
+    if ":" in model_part and model_part.split(":", 1)[0].lower() in known:
         prefix, rest = model_part.split(":", 1)
-        if prefix.lower() in known:
-            return prefix.lower(), rest, host
+        return prefix.lower(), rest, host
     return "ollama", model_part, host
 
 
 class LLMGateway:
     """Unified Gateway for LLM providers using provider:model@host convention."""
 
-    def __init__(
-        self,
-        ollama_url: Optional[str] = None,
-        vllm_url: Optional[str] = None,
-        nvidia_url: Optional[str] = None,
-        nvidia_api_key: Optional[str] = None,
-    ):
+    def __init__(self, ollama_url: Optional[str] = None, vllm_url: Optional[str] = None, nvidia_url: Optional[str] = None, nvidia_api_key: Optional[str] = None):
         self.ollama_url = ollama_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         self.vllm_url = vllm_url or os.getenv("VLLM_BASE_URL", "http://localhost:8000/v1")
         self.nvidia_url = nvidia_url or os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
@@ -48,36 +39,20 @@ class LLMGateway:
         return ChatOllama(model=model_name, base_url=custom_host or self.ollama_url)
 
     def _convert_messages(self, messages: List[Dict[str, str]]):
-        converted = []
-        for msg in messages:
-            role = msg.get("role")
-            content = msg.get("content", "")
-            if role == "system":
-                converted.append(SystemMessage(content=content))
-            elif role == "assistant":
-                converted.append(AIMessage(content=content))
-            else:
-                converted.append(HumanMessage(content=content))
-        return converted
+        role_map = {"system": SystemMessage, "assistant": AIMessage}
+        return [role_map.get(m.get("role"), HumanMessage)(content=m.get("content", "")) for m in messages]
 
-    async def stream_chat(
-        self, model_or_provider: str, messages_or_model: Any, messages: Optional[List[Dict[str, str]]] = None
-    ) -> AsyncIterator[str]:
-        if messages is not None:
-            provider, model_spec, msg_list = model_or_provider, messages_or_model, messages
-        else:
-            provider, model_spec, msg_list = None, model_or_provider, messages_or_model
+    async def stream_chat(self, model_or_provider: str, messages_or_model: Any, messages: Optional[List[Dict[str, str]]] = None) -> AsyncIterator[Union[ContentEvent, ReasoningEvent]]:
+        provider, model_spec, msg_list = (model_or_provider, messages_or_model, messages) if messages is not None else (None, model_or_provider, messages_or_model)
         client = self._get_client(model_spec, provider=provider)
         async for chunk in client.astream(self._convert_messages(msg_list)):
+            reasoning = chunk.additional_kwargs.get("reasoning_content") or getattr(chunk, "reasoning_content", None)
+            if reasoning:
+                yield ReasoningEvent(content=str(reasoning))
             if chunk.content:
-                if isinstance(chunk.content, str):
-                    yield chunk.content
-                elif isinstance(chunk.content, list):
-                    for part in chunk.content:
-                        if isinstance(part, str):
-                            yield part
-                        elif isinstance(part, dict) and "text" in part:
-                            yield part["text"]
+                text = chunk.content if isinstance(chunk.content, str) else "".join(p if isinstance(p, str) else p.get("text", "") for p in chunk.content if isinstance(p, (str, dict)))
+                if text:
+                    yield ContentEvent(content=text)
 
     async def get_models(self, provider: str = "ollama") -> List[Dict[str, Any]]:
         prefix = "openai:" if provider.lower() in ("vllm", "nvidia", "openai") else "ollama:"
@@ -85,5 +60,4 @@ class LLMGateway:
 
     async def embed(self, model: str, texts: List[str]) -> List[List[float]]:
         _, real_model, _ = parse_model_spec(model)
-        embeddings = OllamaEmbeddings(model=real_model or model, base_url=self.ollama_url)
-        return await embeddings.aembed_documents(texts)
+        return await OllamaEmbeddings(model=real_model or model, base_url=self.ollama_url).aembed_documents(texts)
