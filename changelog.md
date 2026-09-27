@@ -4,6 +4,14 @@ All notable repository changes are recorded here, newest first.
 
 ## 2026-09-27
 
+### P1-S3 SQL Repository extraction
+
+- Extracted repository classes (`ConversationRepository`, `MessageRepository`, `DocumentRepository`, `MemoryRepository`, `SettingsRepository`) in `backend/app/infrastructure/db/repositories.py`.
+- Updated all service modules under `backend/app/services/` to call repositories directly instead of `database.*`.
+- Converted `backend/database.py` to a thin re-export wrapper using the repositories.
+- Created `backend/test_repositories.py` with full unit test coverage.
+- Verified `grep -r "import database" app/services/` returns no matches and all pytest tests pass.
+
 ### P1-S2 ChatService extraction
 
 - Extracted chat streaming, routing, RAG retrieval, and message persistence into `ChatService` in `backend/app/services/chat_service.py`.

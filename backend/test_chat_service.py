@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 
 from fastapi.testclient import TestClient
 
@@ -27,23 +27,26 @@ class ChatServiceTest(unittest.IsolatedAsyncioTestCase):
             await anext(gen)
         self.assertIn("Model must be specified", str(ctx.exception))
 
-    @patch("app.services.chat_service.database")
-    async def test_stream_chat_invalid_conversation_id_raises_value_error(self, mock_db):
-        mock_db.get_settings.return_value = {}
-        mock_db.get_conversation.return_value = None
+    @patch("app.services.chat_service.conversation_repo")
+    @patch("app.services.chat_service.settings_repo")
+    async def test_stream_chat_invalid_conversation_id_raises_value_error(self, mock_settings_repo, mock_conv_repo):
+        mock_settings_repo.get.return_value = {}
+        mock_conv_repo.get.return_value = None
         request = ChatRequest(prompt="Hello", model="ollama/qwen:4b")
         with self.assertRaises(ValueError) as ctx:
             gen = self.service.stream_chat(request, conversation_id=999999)
             await anext(gen)
         self.assertIn("Conversation not found", str(ctx.exception))
 
+    @patch("app.services.chat_service.message_repo")
+    @patch("app.services.chat_service.conversation_repo")
+    @patch("app.services.chat_service.settings_repo")
     @patch("app.services.chat_service.ollama_client")
-    @patch("app.services.chat_service.database")
-    async def test_stream_chat_yields_events(self, mock_db, mock_ollama):
-        mock_db.get_settings.return_value = {}
-        mock_db.create_conversation.return_value = {"id": 1}
-        mock_db.get_conversation.return_value = {"id": 1, "title": "Chat"}
-        mock_db.list_messages.return_value = []
+    async def test_stream_chat_yields_events(self, mock_ollama, mock_settings_repo, mock_conv_repo, mock_msg_repo):
+        mock_settings_repo.get.return_value = {}
+        mock_conv_repo.create.return_value = {"id": 1}
+        mock_conv_repo.get.return_value = {"id": 1, "title": "Chat"}
+        mock_msg_repo.list_by_conversation.return_value = []
         
         async def dummy_stream(*args, **kwargs):
             yield "Hello"

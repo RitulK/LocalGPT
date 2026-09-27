@@ -1,7 +1,9 @@
-from app.services.runtime import model_router, nvidia_client, ollama_client, vllm_client
-import database
 from app.domain.schemas import Settings
-from app.services.runtime import default_settings
+from app.infrastructure.db.connection import get_connection
+from app.infrastructure.db.repositories import SettingsRepository
+from app.services.runtime import default_settings, model_router, nvidia_client, ollama_client, vllm_client
+
+settings_repo = SettingsRepository()
 
 
 async def list_models():
@@ -30,5 +32,6 @@ def test_route(prompt: str, settings):
 
 
 def test_route_request(prompt: str):
-    settings = Settings(**database.get_settings(default_settings()))
+    with get_connection() as conn:
+        settings = Settings(**settings_repo.get(conn, default_settings()))
     return test_route(prompt, settings)

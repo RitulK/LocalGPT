@@ -1,4 +1,3 @@
-import database
 from ollama_client import OllamaClient
 from rag_service import RAGService
 from router import ModelRouter

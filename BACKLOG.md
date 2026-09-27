@@ -59,7 +59,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 ### [P1-S3] Extract repositories for SQL access
 
 - **ID:** P1-S3
-- **Status:** todo
+- **Status:** completed
 - **Phase:** 1
 - **Priority:** high
 - **Estimate:** M (~2–4 h)
@@ -67,11 +67,11 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 - **Tags:** #refactor #database
 - **Description:** Wrap raw SQL from `database.py` in thin repository classes: `ConversationRepository`, `MessageRepository`, `DocumentRepository`, `MemoryRepository`, `SettingsRepository`. Each repository owns one table.
 - **Acceptance criteria:**
-  - [ ] `app/infrastructure/db/repositories.py` (or one file per repo) defines each repo as a class
-  - [ ] Each repo method takes a `sqlite3.Connection` parameter (no module-level connection)
-  - [ ] Services call repositories instead of `database.*` functions
-  - [ ] `database.py` becomes a thin re-export for backward compat OR is deleted entirely
-  - [ ] `grep -r "import database" app/services/` returns nothing
+  - [x] `app/infrastructure/db/repositories.py` (or one file per repo) defines each repo as a class
+  - [x] Each repo method takes a `sqlite3.Connection` parameter (no module-level connection)
+  - [x] Services call repositories instead of `database.*` functions
+  - [x] `database.py` becomes a thin re-export for backward compat OR is deleted entirely
+  - [x] `grep -r "import database" app/services/` returns nothing
 - **Verification:** `rg "import database" app/services/` returns nothing; existing CRUD tests pass.
 
 ---
