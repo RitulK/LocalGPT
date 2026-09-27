@@ -85,7 +85,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 ### [P2-S1] Build the `LLMGateway` and delete the three clients
 
 - **ID:** P2-S1
-- **Status:** todo
+- **Status:** completed
 - **Phase:** 2
 - **Priority:** high
 - **Estimate:** M (~2–4 h)
@@ -93,11 +93,11 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 - **Tags:** #langchain #providers
 - **Description:** Add `langchain-core`, `langchain-ollama`, `langchain-openai` to `requirements.txt`. Create `app/infrastructure/llm/gateway.py` with `LLMGateway` that maps `("ollama", "qwen:4b") → ChatOllama(...)`, `("vllm", "llama-...") → ChatOpenAI(base_url=vllm_url, ...)`, `("nvidia", "nvidia/...") → ChatOpenAI(base_url=nvidia_url, ...)`. Delete `backend/ollama_client.py`, `backend/vllm_client.py`, `backend/nvidia_client.py`. Update `ChatService` to call `LLMGateway` instead of the old clients.
 - **Acceptance criteria:**
-  - [ ] `backend/{ollama,vllm,nvidia}_client.py` are deleted
-  - [ ] `app/infrastructure/llm/gateway.py` ≤ 80 LOC
-  - [ ] `LLMGateway.stream_chat(provider, model, messages)` returns `AsyncIterator[StreamEvent]`
-  - [ ] Existing manual chat test passes for all three providers
-  - [ ] `rg "httpx" app/infrastructure/llm/` returns nothing (LangChain handles HTTP)
+  - [x] `backend/{ollama,vllm,nvidia}_client.py` are deleted
+  - [x] `app/infrastructure/llm/gateway.py` ≤ 80 LOC
+  - [x] `LLMGateway.stream_chat(provider, model, messages)` returns `AsyncIterator[StreamEvent]`
+  - [x] Existing manual chat test passes for all three providers
+  - [x] `rg "httpx" app/infrastructure/llm/` returns nothing (LangChain handles HTTP)
 - **Verification:** `git diff --stat` shows net deletion of ≥ 500 LOC; streaming behavior is byte-identical for non-reasoning content.
 
 ---

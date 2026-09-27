@@ -1,24 +1,18 @@
 from app.domain.schemas import Settings
 from app.infrastructure.db.connection import get_connection
 from app.infrastructure.db.repositories import SettingsRepository
-from app.services.runtime import default_settings, model_router, nvidia_client, ollama_client, vllm_client
+from app.services.runtime import default_settings, llm_gateway, model_router
 
 settings_repo = SettingsRepository()
 
 
 async def list_models():
     models = []
-    for client, name in (
-        (ollama_client, "Ollama"),
-        (vllm_client, "vLLM"),
-        (nvidia_client, "Nvidia"),
-    ):
-        if client is None:
-            continue
+    for provider in ("ollama", "vllm", "nvidia"):
         try:
-            models.extend(await client.get_models())
+            models.extend(await llm_gateway.get_models(provider))
         except Exception as exc:
-            print(f"Warning: Could not fetch {name} models: {exc}")
+            print(f"Warning: Could not fetch {provider} models: {exc}")
     return {"models": models}
 
 

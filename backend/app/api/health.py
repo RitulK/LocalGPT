@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.services.runtime import ollama_client, rag_service
+from app.services.runtime import llm_gateway
 
 router = APIRouter()
 
@@ -13,7 +13,7 @@ async def root():
 @router.get("/health")
 async def health_check():
     try:
-        models = await ollama_client.get_models()
+        models = await llm_gateway.get_models("ollama")
         return {"status": "healthy", "ollama_running": True, "models_available": len(models)}
     except Exception as exc:
         return {"status": "unhealthy", "ollama_running": False, "error": str(exc)}

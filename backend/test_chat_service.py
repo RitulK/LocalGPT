@@ -19,8 +19,8 @@ class ChatServiceTest(unittest.IsolatedAsyncioTestCase):
         ]
         self.assertEqual(public_methods, ["stream_chat"])
 
-    @patch("app.services.chat_service.ollama_client")
-    async def test_stream_chat_missing_model_raises_value_error(self, mock_ollama):
+    @patch("app.services.chat_service.llm_gateway")
+    async def test_stream_chat_missing_model_raises_value_error(self, mock_llm_gateway):
         request = ChatRequest(prompt="Hello", use_router=False)
         with self.assertRaises(ValueError) as ctx:
             gen = self.service.stream_chat(request)
@@ -41,8 +41,8 @@ class ChatServiceTest(unittest.IsolatedAsyncioTestCase):
     @patch("app.services.chat_service.message_repo")
     @patch("app.services.chat_service.conversation_repo")
     @patch("app.services.chat_service.settings_repo")
-    @patch("app.services.chat_service.ollama_client")
-    async def test_stream_chat_yields_events(self, mock_ollama, mock_settings_repo, mock_conv_repo, mock_msg_repo):
+    @patch("app.services.chat_service.llm_gateway")
+    async def test_stream_chat_yields_events(self, mock_llm_gateway, mock_settings_repo, mock_conv_repo, mock_msg_repo):
         mock_settings_repo.get.return_value = {}
         mock_conv_repo.create.return_value = {"id": 1}
         mock_conv_repo.get.return_value = {"id": 1, "title": "Chat"}
@@ -52,7 +52,7 @@ class ChatServiceTest(unittest.IsolatedAsyncioTestCase):
             yield "Hello"
             yield " World"
 
-        mock_ollama.chat_stream.side_effect = dummy_stream
+        mock_llm_gateway.stream_chat.side_effect = dummy_stream
 
         request = ChatRequest(prompt="Hi", model="ollama/qwen:4b")
         chunks = []

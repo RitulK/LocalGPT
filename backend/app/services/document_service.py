@@ -2,7 +2,7 @@ from pathlib import Path
 
 from app.infrastructure.db.connection import get_connection
 from app.infrastructure.db.repositories import DocumentRepository
-from app.services.runtime import ollama_client, rag_service
+from app.services.runtime import llm_gateway, rag_service
 
 document_repo = DocumentRepository()
 
@@ -13,7 +13,7 @@ def list_documents():
 
 
 async def upload_document(file):
-    return await rag_service.ingest_upload(file, ollama_client)
+    return await rag_service.ingest_upload(file, llm_gateway)
 
 
 def get_document(document_id: int):

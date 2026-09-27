@@ -1,23 +1,8 @@
-from ollama_client import OllamaClient
+from app.infrastructure.llm.gateway import LLMGateway
 from rag_service import RAGService
 from router import ModelRouter
-from vllm_client import VLLMClient
 
-try:
-    from nvidia_client import NvidiaClient
-except ModuleNotFoundError as exc:
-    NvidiaClient = None
-    print(f"Warning: Nvidia client dependencies unavailable - {exc}")
-
-
-ollama_client = OllamaClient()
-vllm_client = VLLMClient()
-try:
-    nvidia_client = NvidiaClient() if NvidiaClient else None
-except ValueError as exc:
-    nvidia_client = None
-    print(f"Warning: Nvidia client not available - {exc}")
-
+llm_gateway = LLMGateway()
 model_router = ModelRouter()
 rag_service = RAGService()
 MAX_CONTEXT_MESSAGES = 6
