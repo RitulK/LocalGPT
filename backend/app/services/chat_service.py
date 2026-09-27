@@ -65,10 +65,6 @@ class ChatService:
                 title = request.prompt[:50] + ("..." if len(request.prompt) > 50 else "")
                 conversation_repo.update_title(conn, cid, title)
 
-        is_nvidia_model = "nvidia/" in selected_model.lower() or "nemotron" in selected_model.lower()
-        is_vllm_model = selected_model.lower().startswith("llama-3.3-nemotron") and not is_nvidia_model
-        provider = "nvidia" if is_nvidia_model else ("vllm" if is_vllm_model else "ollama")
-
         accumulated_content = ""
         metadata = {
             "type": "metadata",
@@ -81,7 +77,7 @@ class ChatService:
         }
         yield f"data: {json.dumps(metadata)}\n\n"
 
-        async for chunk in llm_gateway.stream_chat(provider, selected_model, messages):
+        async for chunk in llm_gateway.stream_chat(selected_model, messages):
             if not chunk:
                 continue
             accumulated_content += chunk

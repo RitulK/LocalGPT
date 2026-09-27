@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import AsyncMock, patch, MagicMock
 
-from app.infrastructure.llm.gateway import LLMGateway
+from app.infrastructure.llm.gateway import LLMGateway, parse_model_spec
 from langchain_core.messages import AIMessageChunk
 
 
@@ -9,14 +9,26 @@ class LLMGatewayTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.gateway = LLMGateway()
 
+    def test_parse_model_spec(self):
+        self.assertEqual(parse_model_spec("ollama:qwen:4b"), ("ollama", "qwen:4b", None))
+        self.assertEqual(
+            parse_model_spec("openai:llama-3.3@http://localhost:8000/v1"),
+            ("openai", "llama-3.3", "http://localhost:8000/v1"),
+        )
+        self.assertEqual(
+            parse_model_spec("nvidia:nvidia/nemotron-4-34b"),
+            ("nvidia", "nvidia/nemotron-4-34b", None),
+        )
+        self.assertEqual(parse_model_spec("qwen:4b"), ("ollama", "qwen:4b", None))
+
     def test_get_client_creates_correct_provider(self):
-        ollama_client = self.gateway._get_client("ollama", "qwen:4b")
+        ollama_client = self.gateway._get_client("ollama:qwen:4b")
         self.assertEqual(ollama_client.model, "qwen:4b")
 
-        vllm_client = self.gateway._get_client("vllm", "llama-3.3-nemotron")
+        vllm_client = self.gateway._get_client("vllm:llama-3.3-nemotron")
         self.assertEqual(vllm_client.model_name, "llama-3.3-nemotron")
 
-        nvidia_client = self.gateway._get_client("nvidia", "nvidia/nemotron-4-34b")
+        nvidia_client = self.gateway._get_client("nvidia:nvidia/nemotron-4-34b")
         self.assertEqual(nvidia_client.model_name, "nvidia/nemotron-4-34b")
 
     @patch.object(LLMGateway, "_get_client")
@@ -32,7 +44,7 @@ class LLMGatewayTest(unittest.IsolatedAsyncioTestCase):
 
         messages = [{"role": "user", "content": "Hi"}]
         chunks = []
-        async for chunk in self.gateway.stream_chat("ollama", "qwen:4b", messages):
+        async for chunk in self.gateway.stream_chat("ollama:qwen:4b", messages):
             chunks.append(chunk)
 
         self.assertEqual(chunks, ["Hello", " world!"])
@@ -43,7 +55,7 @@ class LLMGatewayTest(unittest.IsolatedAsyncioTestCase):
         mock_embeddings_inst.aembed_documents = AsyncMock(return_value=[[0.1, 0.2]])
         mock_embeddings_cls.return_value = mock_embeddings_inst
 
-        result = await self.gateway.embed("nomic-embed-text", ["test prompt"])
+        result = await self.gateway.embed("ollama:nomic-embed-text", ["test prompt"])
         self.assertEqual(result, [[0.1, 0.2]])
         mock_embeddings_inst.aembed_documents.assert_called_once_with(["test prompt"])
 

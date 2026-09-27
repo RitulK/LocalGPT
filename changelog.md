@@ -4,6 +4,14 @@ All notable repository changes are recorded here, newest first.
 
 ## 2026-09-27
 
+### P2-S2 Provider-name convention & registry
+
+- Implemented `provider:model@host` parsing logic (`parse_model_spec`) in `LLMGateway`.
+- Removed all hardcoded string-sniffing for `"nemotron"` and `"nvidia/"` across `backend/app/`.
+- Updated `ChatService` and `LLMGateway` to resolve adapters dynamically via model name prefixes (`ollama:`, `openai:`, `nvidia:`).
+- Added `test_parse_model_spec` unit test in `test_llm_gateway.py`.
+- Verified all 22 pytest tests pass cleanly.
+
 ### P2-S1 LLMGateway build & provider client consolidation
 
 - Added `langchain-core`, `langchain-ollama`, and `langchain-openai` to `requirements.txt`.

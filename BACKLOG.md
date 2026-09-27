@@ -105,7 +105,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 ### [P2-S2] Provider-name convention and registry
 
 - **ID:** P2-S2
-- **Status:** todo
+- **Status:** completed
 - **Phase:** 2
 - **Priority:** high
 - **Estimate:** S (~1 h)
@@ -113,11 +113,11 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 - **Tags:** #refactor #providers
 - **Description:** Introduce `provider:model@host` model-name convention. `LLMGateway.stream_chat` parses the prefix and routes to the correct adapter. Update `ModelCatalogService` to format model names returned by the catalog (Ollama → `ollama:`, vLLM → `openai:`, NVIDIA → `openai:`). Update `ChatService` and `ChatRequest` to use the new format.
 - **Acceptance criteria:**
-  - [ ] All model names in API responses use the prefix convention
-  - [ ] `ChatRequest.model` accepts `provider:model@host` format
-  - [ ] `rg "nemotron" app/infrastructure/llm/` returns 0 hits (no more string-sniffing)
-  - [ ] `rg '"nvidia/"' app/` returns 0 hits
-  - [ ] Frontend dropdown displays names from the new format correctly
+  - [x] All model names in API responses use the prefix convention
+  - [x] `ChatRequest.model` accepts `provider:model@host` format
+  - [x] `rg "nemotron" app/infrastructure/llm/` returns 0 hits (no more string-sniffing)
+  - [x] `rg '"nvidia/"' app/` returns 0 hits
+  - [x] Frontend dropdown displays names from the new format correctly
 - **Verification:** Manual test — pick each provider from the UI; backend routes to correct base URL; streaming works.
 
 ---
@@ -346,8 +346,8 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 
 | Phase | Stories | Status |
 |---|---|---|
-| 1 — Layer the backend | P1-S1, P1-S2, P1-S3 | not started |
-| 2 — Replace providers | P2-S1, P2-S2, P2-S3 | not started |
+| 1 — Layer the backend | P1-S1, P1-S2, P1-S3 | Done |
+| 2 — Replace providers | P2-S1, P2-S2, P2-S3 | in-progress |
 | 3 — RAG simplification | P3-S1, P3-S2 | not started |
 | 4 — Remove router | P4-S1 | not started |
 | 5 — Memory works | P5-S1, P5-S2 | not started |
