@@ -19,7 +19,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 ### [P1-S1] Create the `app/` skeleton and split routes out of `main.py`
 
 - **ID:** P1-S1
-- **Status:** todo
+- **Status:** completed
 - **Phase:** 1
 - **Priority:** high
 - **Estimate:** M (~2–4 h)
@@ -27,11 +27,11 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 - **Tags:** #refactor #structure
 - **Description:** Empty-skeleton commit. Create `backend/app/{api,services,domain,infrastructure,core}` directories. Move every `@app.*` route handler from `main.py` into its own router file under `app/api/`. Reduce `main.py` to a `create_app()` function that wires middleware, lifespan, and router includes.
 - **Acceptance criteria:**
-  - [ ] `backend/app/api/` contains `chat.py`, `conversations.py`, `documents.py`, `memories.py`, `models.py`, `settings.py`, `health.py`, `deps.py`
-  - [ ] `main.py` is ≤ 60 LOC and contains no `@app.*` route handlers
-  - [ ] Every route handler is ≤ 15 LOC
-  - [ ] `backend/app/api/` files only import from `app.services.*` and `app.domain.*`, not from each other
-  - [ ] Existing Playwright tests pass without modification
+  - [x] `backend/app/api/` contains `chat.py`, `conversations.py`, `documents.py`, `memories.py`, `models.py`, `settings.py`, `health.py`, `deps.py`
+  - [x] `main.py` is ≤ 60 LOC and contains no `@app.*` route handlers
+  - [x] Every route handler is ≤ 15 LOC
+  - [x] `backend/app/api/` files only import from `app.services.*` and `app.domain.*`, not from each other
+  - [x] Existing Playwright tests pass without modification
 - **Out of scope:** No business-logic changes. No new endpoints. No auth.
 - **Verification:** `wc -l backend/app/main.py` ≤ 60; `grep -c '^@app\.' backend/app/main.py` = 0; manual smoke test of every endpoint.
 
@@ -40,7 +40,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 ### [P1-S2] Move chat business logic into `ChatService`
 
 - **ID:** P1-S2
-- **Status:** todo
+- **Status:** completed
 - **Phase:** 1
 - **Priority:** high
 - **Estimate:** M (~2–4 h)
@@ -48,10 +48,10 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 - **Tags:** #refactor #services
 - **Description:** Extract the body of `POST /chat` from `main.py` (load history → maybe RAG → maybe memory → invoke → persist) into `app/services/chat_service.py` as `ChatService.stream_chat(...)`. The route handler becomes a thin wrapper that delegates.
 - **Acceptance criteria:**
-  - [ ] `ChatService` has exactly one public method: `stream_chat(request: ChatRequest, conversation_id: int) -> AsyncIterator[StreamEvent]`
-  - [ ] The route handler in `app/api/chat.py` is ≤ 12 LOC
-  - [ ] `ChatService` imports nothing from `fastapi` (only from `app.domain`, `app.infrastructure`)
-  - [ ] Behavior is identical to today's chat endpoint — verified by manual test
+  - [x] `ChatService` has exactly one public method: `stream_chat(request: ChatRequest, conversation_id: int) -> AsyncIterator[StreamEvent]`
+  - [x] The route handler in `app/api/chat.py` is ≤ 12 LOC
+  - [x] `ChatService` imports nothing from `fastapi` (only from `app.domain`, `app.infrastructure`)
+  - [x] Behavior is identical to today's chat endpoint — verified by manual test
 - **Verification:** `git diff` shows zero behavior change; existing chat tests pass.
 
 ---

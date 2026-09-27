@@ -2,6 +2,16 @@
 
 All notable repository changes are recorded here, newest first.
 
+## 2026-09-27
+
+### P1-S2 ChatService extraction
+
+- Extracted chat streaming, routing, RAG retrieval, and message persistence into `ChatService` in `backend/app/services/chat_service.py`.
+- Removed all `fastapi` dependencies from `ChatService`.
+- Simplified route handler in `backend/app/api/chat.py` to delegate streaming to `ChatService`.
+- Added unit test suite in `backend/test_chat_service.py`.
+- All tests passed (`backend/.venv/bin/python -m pytest -q`).
+
 ## 2026-09-11
 
 ### P1-S1 backend layering
