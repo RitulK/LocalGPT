@@ -4,6 +4,13 @@ All notable repository changes are recorded here, newest first.
 
 ## 2026-10-02
 
+### P3-S2 LangChain Retriever integration in RAGService
+
+- Refactored `RAGService.retrieve` to use `chroma_store.as_retriever(document_ids, k).ainvoke(prompt)` (8 LOC).
+- Removed manual `self.get_collection().query(...)` code completely (`rg "self.get_collection\(\).query" app/` returns 0 hits).
+- Updated `public_sources` and `format_rag_context` in `app/domain/rag.py` to seamlessly handle LangChain `Document` objects.
+- Updated `test_rag_service.py` unit tests and verified all 26 tests pass cleanly.
+
 ### P3-S1 ChromaStore wrapper & retriever extraction
 
 - Added `langchain-chroma` to `requirements.txt`.

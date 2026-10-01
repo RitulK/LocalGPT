@@ -185,51 +185,16 @@ class RAGService:
         self,
         prompt: str,
         document_ids: List[int],
-        ollama_client,
+        ollama_client=None,
         limit: int = RETRIEVAL_LIMIT,
-    ) -> List[Dict[str, Any]]:
-        ready_document_ids = [
-            document_id
-            for document_id in document_ids
-            if (database.get_document(document_id) or {}).get("status") == "ready"
+    ) -> List[Any]:
+        ready_ids = [
+            did for did in document_ids
+            if (database.get_document(did) or {}).get("status") == "ready"
         ]
-        if not ready_document_ids:
+        if not ready_ids:
             return []
-
-        query_embedding = (await ollama_client.embed(self.embedding_model, [prompt]))[0]
-        where = (
-            {"document_id": ready_document_ids[0]}
-            if len(ready_document_ids) == 1
-            else {"document_id": {"$in": ready_document_ids}}
-        )
-        results = self.get_collection().query(
-            query_embeddings=[query_embedding],
-            n_results=limit,
-            where=where,
-            include=["documents", "metadatas", "distances"],
-        )
-
-        documents = results.get("documents", [[]])[0]
-        metadatas = results.get("metadatas", [[]])[0]
-        distances = results.get("distances", [[]])[0]
-
-        sources = []
-        for index, content in enumerate(documents):
-            metadata = metadatas[index] or {}
-            page_number = metadata.get("page_number")
-            sources.append(
-                {
-                    "source_index": index + 1,
-                    "document_id": metadata.get("document_id"),
-                    "filename": metadata.get("filename", "Document"),
-                    "chunk_index": metadata.get("chunk_index"),
-                    "page_number": None if page_number == -1 else page_number,
-                    "distance": distances[index] if index < len(distances) else None,
-                    "content": content,
-                    "snippet": self.snippet(content),
-                }
-            )
-        return sources
+        return await self.chroma_store.as_retriever(document_ids=ready_ids, k=limit).ainvoke(prompt)
 
     def delete_document_vectors(self, document_id: int) -> None:
         self.chroma_store.delete_document_vectors(document_id)

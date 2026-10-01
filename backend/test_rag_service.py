@@ -1,8 +1,9 @@
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 
+from langchain_core.documents import Document
 from rag_service import RAGService
 
 
@@ -34,13 +35,25 @@ class RAGServiceTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_retrieve_skips_documents_that_are_not_ready(self):
         service = RAGService()
-        ollama_client = AsyncMock()
-
         with patch("rag_service.database.get_document", return_value={"status": "failed"}):
-            results = await service.retrieve("what is inside?", [42], ollama_client)
+            results = await service.retrieve("what is inside?", [42])
 
         self.assertEqual(results, [])
-        ollama_client.embed.assert_not_called()
+
+    async def test_retrieve_calls_chroma_store_retriever(self):
+        service = RAGService()
+        mock_retriever = AsyncMock()
+        mock_retriever.ainvoke.return_value = [
+            Document(page_content="RAG test content", metadata={"document_id": 42, "filename": "test.pdf", "chunk_index": 0})
+        ]
+        with patch("rag_service.database.get_document", return_value={"status": "ready"}):
+            with patch.object(service.chroma_store, "as_retriever", return_value=mock_retriever) as mock_as_retriever:
+                results = await service.retrieve("quantum physics", [42])
+
+        mock_as_retriever.assert_called_once_with(document_ids=[42], k=5)
+        mock_retriever.ainvoke.assert_called_once_with("quantum physics")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].page_content, "RAG test content")
 
 
 if __name__ == "__main__":

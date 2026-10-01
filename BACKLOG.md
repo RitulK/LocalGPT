@@ -168,7 +168,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 ### [P3-S2] Replace `RAGService.retrieve` with the retriever
 
 - **ID:** P3-S2
-- **Status:** todo
+- **Status:** completed
 - **Phase:** 3
 - **Priority:** high
 - **Estimate:** S (~1 h)
@@ -176,9 +176,9 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 - **Tags:** #refactor #rag
 - **Description:** Replace the body of `RAGService.retrieve(prompt, document_ids, ...)` with one call: `await chroma_store.as_retriever(...).ainvoke(prompt)`. Update `ChatService` to consume the new return shape (list of LangChain `Document` instead of list of dict).
 - **Acceptance criteria:**
-  - [ ] `RAGService.retrieve` ≤ 10 LOC
-  - [ ] Chat with RAG returns the same citations and snippets as today (manual test)
-  - [ ] `rg "self.get_collection\(\).query" app/` returns 0 hits
+  - [x] `RAGService.retrieve` ≤ 10 LOC
+  - [x] Chat with RAG returns the same citations and snippets as today (manual test)
+  - [x] `rg "self.get_collection\(\).query" app/` returns 0 hits
 - **Verification:** Upload a PDF, ask a question, get the same answer with the same source list as before refactor.
 
 ---
@@ -348,7 +348,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 |---|---|---|
 | 1 — Layer the backend | P1-S1, P1-S2, P1-S3 | Done |
 | 2 — Replace providers | P2-S1, P2-S2, P2-S3 | Done |
-| 3 — RAG simplification | P3-S1, P3-S2 | in-progress |
+| 3 — RAG simplification | P3-S1, P3-S2 | Done |
 | 4 — Remove router | P4-S1 | not started |
 | 5 — Memory works | P5-S1, P5-S2 | not started |
 | 6 — Async ingestion | P6-S1 | not started |
