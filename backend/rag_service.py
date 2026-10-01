@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import database
+from app.infrastructure.vector.chroma_store import ChromaStore
 
 
 DEFAULT_EMBEDDING_MODEL = os.getenv("RAG_EMBEDDING_MODEL", "nomic-embed-text")
@@ -25,7 +26,11 @@ class RAGService:
         self.chroma_dir = self.base_dir / "chroma"
         self.embedding_model = embedding_model
         self.collection_name = "localgpt_documents"
-        self._collection = None
+        self.ensure_storage()
+        self.chroma_store = ChromaStore(
+            chroma_dir=self.chroma_dir,
+            collection_name=self.collection_name,
+        )
 
     def ensure_storage(self) -> None:
         self.upload_dir.mkdir(parents=True, exist_ok=True)
@@ -58,18 +63,17 @@ class RAGService:
         document = database.create_document(
             filename=self.safe_filename(upload_file.filename),
             content_type=upload_file.content_type or "application/octet-stream",
-            file_path="pending",
+            file_path="",
             status="pending",
         )
-
         document_id = document["id"]
-        filename = document["filename"]
-        file_path = self.upload_dir / f"{document_id}-{filename}"
-        content = await upload_file.read()
-        file_path.write_bytes(content)
-        database.update_document_file_path(document_id, str(file_path))
+        extension = Path(upload_file.filename or "").suffix.lower()
+        file_path = self.upload_dir / f"doc_{document_id}{extension}"
 
         try:
+            content = await upload_file.read()
+            file_path.write_bytes(content)
+            database.update_document_file_path(document_id, str(file_path))
             await self.index_document(document_id, ollama_client)
         except Exception as exc:
             database.update_document_status(document_id, "failed", 0, str(exc))
@@ -82,58 +86,59 @@ class RAGService:
             raise ValueError("Document not found.")
 
         database.update_document_status(document_id, "indexing", error=None)
-        pages = self.extract_text(Path(document["file_path"]))
-        chunks = self.chunk_pages(pages)
-        if not chunks:
-            raise ValueError("No extractable text was found in this document.")
+        try:
+            file_path = Path(document["file_path"])
+            text_by_page = self.extract_text(file_path, document["content_type"])
+            chunks = self.chunk_pages(text_by_page)
+            if not chunks:
+                raise ValueError("No text could be extracted from document.")
 
-        embeddings = await self.embed_chunks(
-            [chunk["content"] for chunk in chunks],
-            ollama_client,
-        )
+            embeddings = await self.embed_chunks(
+                [chunk["content"] for chunk in chunks],
+                ollama_client,
+            )
+            collection = self.get_collection()
+            collection.delete(where={"document_id": document_id})
+            collection.add(
+                ids=[self.chunk_id(document_id, idx) for idx in range(len(chunks))],
+                embeddings=embeddings,
+                documents=[chunk["content"] for chunk in chunks],
+                metadatas=[
+                    {
+                        "document_id": document_id,
+                        "filename": document["filename"],
+                        "chunk_index": chunk["chunk_index"],
+                        "page_number": chunk.get("page_number") or -1,
+                    }
+                    for chunk in chunks
+                ],
+            )
+            database.replace_document_chunks(document_id, chunks)
+            database.update_document_status(document_id, "ready", len(chunks), error=None)
+            return database.get_document(document_id)
+        except Exception as exc:
+            database.update_document_status(document_id, "failed", error=str(exc))
+            raise
 
-        self.delete_document_vectors(document_id)
-        collection = self.get_collection()
-        collection.add(
-            ids=[self.chunk_id(document_id, chunk["chunk_index"]) for chunk in chunks],
-            embeddings=embeddings,
-            documents=[chunk["content"] for chunk in chunks],
-            metadatas=[
-                {
-                    "document_id": document_id,
-                    "filename": document["filename"],
-                    "chunk_index": chunk["chunk_index"],
-                    "page_number": chunk["page_number"] or -1,
-                }
-                for chunk in chunks
-            ],
-        )
-
-        database.replace_document_chunks(document_id, chunks)
-        database.update_document_status(document_id, "ready", len(chunks), error=None)
-        return database.get_document(document_id)
-
-    def extract_text(self, file_path: Path) -> List[Dict[str, Any]]:
+    def extract_text(self, file_path: Path, content_type: str = "") -> List[Dict[str, Any]]:
         extension = file_path.suffix.lower()
         if extension == ".txt":
-            return [{"page_number": None, "text": self.normalize_text(file_path.read_text(errors="replace"))}]
+            content = file_path.read_text(encoding="utf-8", errors="ignore")
+            return [{"page_number": None, "text": self.normalize_text(content)}]
         if extension == ".pdf":
-            return self.extract_pdf(file_path)
-        raise ValueError("Unsupported document type.")
+            try:
+                from pypdf import PdfReader
+            except ImportError as exc:
+                raise RuntimeError("pypdf is not installed. Run pip install -r backend/requirements.txt.") from exc
 
-    def extract_pdf(self, file_path: Path) -> List[Dict[str, Any]]:
-        try:
-            from pypdf import PdfReader
-        except ImportError as exc:
-            raise RuntimeError("pypdf is not installed. Run pip install -r backend/requirements.txt.") from exc
-
-        reader = PdfReader(str(file_path))
-        pages = []
-        for index, page in enumerate(reader.pages, start=1):
-            text = self.normalize_text(page.extract_text() or "")
-            if text:
-                pages.append({"page_number": index, "text": text})
-        return pages
+            reader = PdfReader(str(file_path))
+            pages = []
+            for idx, page in enumerate(reader.pages, start=1):
+                text = self.normalize_text(page.extract_text() or "")
+                if text:
+                    pages.append({"page_number": idx, "text": text})
+            return pages
+        raise ValueError(f"Unsupported file extension: {extension}")
 
     def chunk_pages(
         self,
@@ -141,26 +146,29 @@ class RAGService:
         chunk_words: int = CHUNK_WORDS,
         overlap_words: int = CHUNK_OVERLAP_WORDS,
     ) -> List[Dict[str, Any]]:
-        chunks = []
+        chunks: List[Dict[str, Any]] = []
         chunk_index = 0
-        step = max(chunk_words - overlap_words, 1)
 
         for page in pages:
             words = page["text"].split()
-            for start in range(0, len(words), step):
-                window = words[start:start + chunk_words]
-                if not window:
-                    continue
+            if not words:
+                continue
+
+            start = 0
+            while start < len(words):
+                end = start + chunk_words
+                chunk_words_list = words[start:end]
                 chunks.append(
                     {
                         "chunk_index": chunk_index,
                         "page_number": page.get("page_number"),
-                        "content": " ".join(window),
+                        "content": " ".join(chunk_words_list),
                     }
                 )
                 chunk_index += 1
                 if start + chunk_words >= len(words):
                     break
+                start += max(1, chunk_words - overlap_words)
 
         return chunks
 
@@ -224,25 +232,10 @@ class RAGService:
         return sources
 
     def delete_document_vectors(self, document_id: int) -> None:
-        try:
-            self.get_collection().delete(where={"document_id": document_id})
-        except Exception:
-            pass
+        self.chroma_store.delete_document_vectors(document_id)
 
     def get_collection(self):
-        if self._collection is None:
-            try:
-                import chromadb
-            except ImportError as exc:
-                raise RuntimeError("chromadb is not installed. Run pip install -r backend/requirements.txt.") from exc
-
-            self.ensure_storage()
-            client = chromadb.PersistentClient(path=str(self.chroma_dir))
-            self._collection = client.get_or_create_collection(
-                name=self.collection_name,
-                metadata={"hnsw:space": "cosine"},
-            )
-        return self._collection
+        return self.chroma_store.get_collection()
 
     def chunk_id(self, document_id: int, chunk_index: int) -> str:
         return f"document-{document_id}-chunk-{chunk_index}"

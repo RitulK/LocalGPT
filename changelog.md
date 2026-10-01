@@ -2,6 +2,16 @@
 
 All notable repository changes are recorded here, newest first.
 
+## 2026-10-02
+
+### P3-S1 ChromaStore wrapper & retriever extraction
+
+- Added `langchain-chroma` to `requirements.txt`.
+- Created `ChromaStore` in `backend/app/infrastructure/vector/chroma_store.py` (57 LOC) exposing `as_retriever(document_ids, k)`.
+- Updated `RAGService` to delegate persistent Chroma collection operations to `ChromaStore`.
+- Created `test_chroma_store.py` unit test suite.
+- All 25 pytest unit tests pass cleanly.
+
 ## 2026-09-27
 
 ### P2-S3 Typed SSE events (discriminated union)

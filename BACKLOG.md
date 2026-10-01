@@ -150,7 +150,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 ### [P3-S1] Wrap Chroma in `ChromaStore` with `as_retriever`
 
 - **ID:** P3-S1
-- **Status:** todo
+- **Status:** completed
 - **Phase:** 3
 - **Priority:** high
 - **Estimate:** S (~1 h)
@@ -158,9 +158,9 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 - **Tags:** #langchain #rag
 - **Description:** Add `langchain-chroma` to requirements. Create `app/infrastructure/vector/chroma_store.py` with `ChromaStore` class. Move the Chroma initialization from `RAGService` into this class. Expose `as_retriever(document_ids: list[int], k: int) -> Retriever`.
 - **Acceptance criteria:**
-  - [ ] `app/infrastructure/vector/chroma_store.py` ≤ 80 LOC
-  - [ ] `ChromaStore.as_retriever(document_ids=[1,2], k=5)` returns a retriever filtered to those document IDs
-  - [ ] `pypdf` PDF parsing stays in `RAGService` (no LangChain loader)
+  - [x] `app/infrastructure/vector/chroma_store.py` ≤ 80 LOC
+  - [x] `ChromaStore.as_retriever(document_ids=[1,2], k=5)` returns a retriever filtered to those document IDs
+  - [x] `pypdf` PDF parsing stays in `RAGService` (no LangChain loader)
 - **Verification:** `python -c "from app.infrastructure.vector.chroma_store import ChromaStore; ..."` succeeds; upload + query round-trip works.
 
 ---
@@ -348,7 +348,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 |---|---|---|
 | 1 — Layer the backend | P1-S1, P1-S2, P1-S3 | Done |
 | 2 — Replace providers | P2-S1, P2-S2, P2-S3 | Done |
-| 3 — RAG simplification | P3-S1, P3-S2 | not started |
+| 3 — RAG simplification | P3-S1, P3-S2 | in-progress |
 | 4 — Remove router | P4-S1 | not started |
 | 5 — Memory works | P5-S1, P5-S2 | not started |
 | 6 — Async ingestion | P6-S1 | not started |
