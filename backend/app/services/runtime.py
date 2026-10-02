@@ -1,9 +1,7 @@
 from app.infrastructure.llm.gateway import LLMGateway
 from rag_service import RAGService
-from router import ModelRouter
 
 llm_gateway = LLMGateway()
-model_router = ModelRouter()
 rag_service = RAGService()
 MAX_CONTEXT_MESSAGES = 6
 FORMAT_SYSTEM_PROMPT = (
@@ -23,4 +21,4 @@ RAG_SYSTEM_PROMPT = (
 def default_settings() -> dict:
     from app.domain.schemas import Settings
 
-    return Settings().dict()
+    return Settings().model_dump()

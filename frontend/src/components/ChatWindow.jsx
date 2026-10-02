@@ -12,7 +12,6 @@ import {
   Cpu,
   Database,
   FileText,
-  Route,
   Send,
   Sparkles,
   Trash2,
@@ -45,10 +44,8 @@ export default function ChatWindow({
   onUpdateLastMessage,
   onClearChat,
   selectedModel,
-  useRouter,
   models,
   onSelectModel,
-  onToggleRouter,
   apiUrl,
   documents,
   selectedDocumentIds,
@@ -129,8 +126,7 @@ export default function ChatWindow({
         },
         body: JSON.stringify({
           prompt,
-          model: useRouter ? null : selectedModel,
-          use_router: useRouter,
+          model: selectedModel,
           conversation_id: conversation.id,
           conversation_history: history,
           use_rag: useRag && selectedDocumentIds.length > 0,
@@ -253,8 +249,8 @@ export default function ChatWindow({
         </div>
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.035] px-3 py-1.5 text-xs text-[#9fb1ad] md:flex">
-            <Route className="h-3.5 w-3.5 text-[#55f3df]" />
-            {useRouter ? 'Router active' : selectedModel}
+            <Cpu className="h-3.5 w-3.5 text-[#55f3df]" />
+            {selectedModel || 'No model selected'}
           </div>
           {hasMessages && allSources.length > 0 && (
             <button
@@ -327,8 +323,6 @@ export default function ChatWindow({
               models={models}
               selectedModel={selectedModel}
               onSelectModel={onSelectModel}
-              useRouter={useRouter}
-              onToggleRouter={onToggleRouter}
               documents={documents}
               selectedDocumentIds={selectedDocumentIds}
               useRag={useRag}
@@ -413,8 +407,6 @@ export default function ChatWindow({
               models={models}
               selectedModel={selectedModel}
               onSelectModel={onSelectModel}
-              useRouter={useRouter}
-              onToggleRouter={onToggleRouter}
               documents={documents}
               selectedDocumentIds={selectedDocumentIds}
               useRag={useRag}
@@ -437,8 +429,6 @@ function Composer({
   models,
   selectedModel,
   onSelectModel,
-  useRouter,
-  onToggleRouter,
   documents,
   selectedDocumentIds,
   useRag,
@@ -473,23 +463,9 @@ function Composer({
           <ModelPicker
             models={models}
             selectedModel={selectedModel}
-            useRouter={useRouter}
             isStreaming={isStreaming}
             onSelectModel={onSelectModel}
-            onToggleRouter={onToggleRouter}
           />
-          <button
-            type="button"
-            onClick={() => onToggleRouter(!useRouter)}
-            className={`inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-sm transition ${
-              useRouter
-                ? 'border-[#28ead8]/20 bg-[#20dcca]/10 text-[#8ffcf0]'
-                : 'border-white/[0.08] bg-white/[0.035] text-[#8da19c]'
-            }`}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Router
-          </button>
           <button
             type="button"
             onClick={() => onToggleRag(!useRag)}
@@ -526,14 +502,12 @@ function Composer({
 function ModelPicker({
   models,
   selectedModel,
-  useRouter,
   isStreaming,
-  onSelectModel,
-  onToggleRouter
+  onSelectModel
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const pickerRef = useRef(null);
-  const activeLabel = useRouter || selectedModel === 'auto' ? 'Auto router' : selectedModel;
+  const activeLabel = selectedModel || (models.length > 0 ? models[0].name : 'Select model');
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -548,7 +522,6 @@ function ModelPicker({
 
   const chooseModel = (value) => {
     onSelectModel(value);
-    onToggleRouter(value === 'auto');
     setIsOpen(false);
   };
 
@@ -563,11 +536,7 @@ function ModelPicker({
         aria-expanded={isOpen}
       >
         <span className="flex min-w-0 items-center gap-2">
-          {useRouter || selectedModel === 'auto' ? (
-            <Sparkles className="h-4 w-4 flex-shrink-0 text-[#71fff1]" />
-          ) : (
-            <Cpu className="h-4 w-4 flex-shrink-0 text-[#71fff1]" />
-          )}
+          <Cpu className="h-4 w-4 flex-shrink-0 text-[#71fff1]" />
           <span className="truncate">{activeLabel}</span>
         </span>
         <ChevronDown className={`h-4 w-4 flex-shrink-0 text-[#78908a] transition ${isOpen ? 'rotate-180' : ''}`} />
@@ -578,16 +547,6 @@ function ModelPicker({
           className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-[300px] overflow-hidden rounded-2xl border border-[#28ead8]/22 bg-[#07100f] p-1.5 shadow-[0_28px_90px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.035),inset_0_1px_0_rgba(255,255,255,0.05)]"
           role="listbox"
         >
-          <ModelOption
-            active={useRouter || selectedModel === 'auto'}
-            icon={Sparkles}
-            title="Auto router"
-            detail="Pick the model per prompt"
-            onClick={() => chooseModel('auto')}
-          />
-
-          <div className="my-1 h-px bg-white/[0.06]" />
-
           <div className="max-h-60 overflow-y-auto pr-1">
             {models.length === 0 ? (
               <div className="px-3 py-4 text-sm text-[#78908a]">No local models found</div>
@@ -595,7 +554,7 @@ function ModelPicker({
               models.map((model) => (
                 <ModelOption
                   key={model.name}
-                  active={!useRouter && selectedModel === model.name}
+                  active={selectedModel === model.name}
                   icon={Cpu}
                   title={model.name}
                   detail={formatModelSize(model.size)}

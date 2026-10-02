@@ -192,7 +192,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 ### [P4-S1] Delete the model router and clean up
 
 - **ID:** P4-S1
-- **Status:** todo
+- **Status:** completed
 - **Phase:** 4
 - **Priority:** high
 - **Estimate:** S (~1 h)
@@ -200,12 +200,12 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 - **Tags:** #cleanup #router
 - **Description:** Delete `backend/router.py`. Remove `ModelRouter`, `QuestionType`, `MODEL_CAPABILITIES`, all keyword/regex lists. Remove `use_router` field from `ChatRequest`. Remove `/router/test` endpoint. Remove `default_general_model`, `default_coding_model`, `default_reasoning_model`, `router_enabled`, `router_models` from settings.
 - **Acceptance criteria:**
-  - [ ] `backend/router.py` deleted
-  - [ ] `rg "use_router" app/` returns 0 hits
-  - [ ] `rg "MODEL_CAPABILITIES" app/` returns 0 hits
-  - [ ] `rg "QuestionType" app/` returns 0 hits
-  - [ ] Frontend "auto-route" toggle is removed from `ChatWindow.jsx` and `Sidebar.jsx`
-  - [ ] Settings UI no longer shows the routing defaults
+  - [x] `backend/router.py` deleted
+  - [x] `rg "use_router" app/` returns 0 hits
+  - [x] `rg "MODEL_CAPABILITIES" app/` returns 0 hits
+  - [x] `rg "QuestionType" app/` returns 0 hits
+  - [x] Frontend "auto-route" toggle is removed from `ChatWindow.jsx` and `Sidebar.jsx`
+  - [x] Settings UI no longer shows the routing defaults
 - **Verification:** Manual test — chat works with a model selected from the dropdown; no router-related code paths remain.
 
 ---
@@ -349,7 +349,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 | 1 — Layer the backend | P1-S1, P1-S2, P1-S3 | Done |
 | 2 — Replace providers | P2-S1, P2-S2, P2-S3 | Done |
 | 3 — RAG simplification | P3-S1, P3-S2 | Done |
-| 4 — Remove router | P4-S1 | not started |
+| 4 — Remove router | P4-S1 | Done |
 | 5 — Memory works | P5-S1, P5-S2 | not started |
 | 6 — Async ingestion | P6-S1 | not started |
 | 7 — Hygiene | P7-S1, P7-S2, P7-S3 | not started |

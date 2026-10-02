@@ -4,6 +4,15 @@ All notable repository changes are recorded here, newest first.
 
 ## 2026-10-02
 
+### P4-S1 Model router deletion and cleanup
+
+- Deleted `backend/router.py` (394 LOC) and obsolete `backend/test_router.py`.
+- Removed `use_router` from `ChatRequest` schema, `ChatService`, and frontend requests (`rg "use_router" app/` returns 0 hits).
+- Removed `/router/test` endpoint and `test_route_request` from `backend/app/api/models.py` and `backend/app/services/model_service.py`.
+- Removed `default_general_model`, `default_coding_model`, `default_reasoning_model`, `router_enabled`, and `router_models` from `Settings` schema.
+- Cleaned up frontend UI: removed auto-route toggle and "Router active" indicator from `ChatWindow.jsx` and `Sidebar.jsx`; redesigned `SettingsPanel.jsx` to configure inference and reasoning tokens without routing defaults.
+- All 22 pytest unit tests pass cleanly, and Vite frontend builds without errors.
+
 ### P3-S2 LangChain Retriever integration in RAGService
 
 - Refactored `RAGService.retrieve` to use `chroma_store.as_retriever(document_ids, k).ainvoke(prompt)` (8 LOC).

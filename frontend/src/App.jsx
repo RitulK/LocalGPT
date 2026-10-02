@@ -25,16 +25,12 @@ function App() {
   const [conversations, setConversations] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [models, setModels] = useState([]);
-  const [selectedModel, setSelectedModel] = useState('auto');
-  const [useRouter, setUseRouter] = useState(true);
+  const [selectedModel, setSelectedModel] = useState('');
   const [activeTab, setActiveTab] = useState('chat'); // chat, models, settings
   const [ollamaStatus, setOllamaStatus] = useState('checking');
   const [settings, setSettings] = useState({
-    default_general_model: null,
-    default_coding_model: null,
-    default_reasoning_model: null,
-    router_enabled: true,
-    router_models: []
+    enable_thinking: false,
+    reasoning_budget: 8192
   });
   const [documents, setDocuments] = useState([]);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
@@ -65,12 +61,13 @@ function App() {
     try {
       const response = await fetch(`${API_URL}/models`);
       const data = await response.json();
-      setModels(data.models || []);
+      const fetched = data.models || [];
+      setModels(fetched);
       
-      // Set default model if auto is selected and models exist
-      if (data.models && data.models.length > 0 && !selectedModel) {
-        setSelectedModel('auto');
-      }
+      setSelectedModel((prev) => {
+        if (prev && fetched.some((m) => m.name === prev)) return prev;
+        return fetched.length > 0 ? fetched[0].name : '';
+      });
     } catch (error) {
       console.error('Failed to fetch models:', error);
     }
@@ -81,7 +78,6 @@ function App() {
       const response = await fetch(`${API_URL}/settings`);
       const data = await response.json();
       setSettings(data);
-      setUseRouter(data.router_enabled ?? true);
     } catch (error) {
       console.error('Failed to fetch settings:', error);
     }
@@ -245,8 +241,6 @@ function App() {
           models={models}
           selectedModel={selectedModel}
           onSelectModel={setSelectedModel}
-          useRouter={useRouter}
-          onToggleRouter={setUseRouter}
           activeTab={activeTab}
           onTabChange={setActiveTab}
           ollamaStatus={ollamaStatus}
@@ -263,10 +257,8 @@ function App() {
               onUpdateLastMessage={updateLastMessage}
               onClearChat={clearCurrentChat}
               selectedModel={selectedModel}
-              useRouter={useRouter}
               models={models}
               onSelectModel={setSelectedModel}
-              onToggleRouter={setUseRouter}
               apiUrl={API_URL}
               documents={documents}
               selectedDocumentIds={selectedDocumentIds}
@@ -302,7 +294,6 @@ function App() {
               settings={settings}
               onUpdateSettings={(updatedSettings) => {
                 setSettings(updatedSettings);
-                setUseRouter(updatedSettings.router_enabled ?? true);
               }}
               models={models}
               apiUrl={API_URL}

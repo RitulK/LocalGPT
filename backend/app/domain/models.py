@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field
 class MetadataEvent(BaseModel):
     type: Literal["metadata"] = "metadata"
     model: str
-    routing_used: bool = False
     conversation_id: int
     rag_used: bool = False
     sources: List[Dict[str, Any]] = Field(default_factory=list)

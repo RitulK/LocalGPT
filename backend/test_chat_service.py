@@ -21,7 +21,7 @@ class ChatServiceTest(unittest.IsolatedAsyncioTestCase):
 
     @patch("app.services.chat_service.llm_gateway")
     async def test_stream_chat_missing_model_raises_value_error(self, mock_llm_gateway):
-        request = ChatRequest(prompt="Hello", use_router=False)
+        request = ChatRequest(prompt="Hello")
         with self.assertRaises(ValueError) as ctx:
             gen = self.service.stream_chat(request)
             await anext(gen)

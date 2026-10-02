@@ -6,7 +6,6 @@ import {
   Plus,
   RefreshCw,
   Settings,
-  Sparkles,
   Trash2,
   Wifi,
   WifiOff
@@ -19,8 +18,6 @@ export default function Sidebar({
   onNewConversation,
   onDeleteConversation,
   models,
-  useRouter,
-  onToggleRouter,
   activeTab,
   onTabChange,
   ollamaStatus,

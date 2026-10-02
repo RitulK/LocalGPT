@@ -15,7 +15,6 @@ from app.services.runtime import (
     FORMAT_SYSTEM_PROMPT,
     MAX_CONTEXT_MESSAGES,
     RAG_SYSTEM_PROMPT,
-    model_router,
     rag_service,
 )
 
@@ -26,13 +25,13 @@ llm_gateway = LLMGateway()
 
 
 class ChatService:
-    """Service handling chat streaming, routing, RAG retrieval, and message persistence via LLMGateway."""
+    """Service handling chat streaming, RAG retrieval, and message persistence via LLMGateway."""
 
     async def stream_chat(
         self, request: ChatRequest, conversation_id: Optional[int] = None
     ) -> AsyncIterator[str]:
         with get_connection() as conn:
-            app_settings = Settings(**settings_repo.get(conn, Settings().dict()))
+            app_settings = Settings(**settings_repo.get(conn, Settings().model_dump()))
 
             cid = conversation_id if conversation_id is not None else request.conversation_id
             if cid is None:
@@ -40,12 +39,9 @@ class ChatService:
             elif not conversation_repo.get(conn, cid):
                 raise ValueError("Conversation not found")
 
-            if request.use_router:
-                selected_model = model_router.route(prompt=request.prompt, settings=app_settings)
-            elif request.model:
-                selected_model = request.model
-            else:
-                raise ValueError("Model must be specified when router is disabled")
+            if not request.model:
+                raise ValueError("Model must be specified")
+            selected_model = request.model
 
             rag_sources = []
             if request.use_rag and request.document_ids:
@@ -69,7 +65,6 @@ class ChatService:
         accumulated_content = ""
         metadata_event = MetadataEvent(
             model=selected_model,
-            routing_used=request.use_router,
             conversation_id=cid,
             rag_used=bool(rag_sources),
             sources=public_sources(rag_sources),

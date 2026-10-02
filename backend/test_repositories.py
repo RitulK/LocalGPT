@@ -106,13 +106,13 @@ class RepositoriesTest(unittest.TestCase):
         self.assertTrue(self.conv_repo.delete(self.conn, conv["id"]))
 
     def test_settings_repository(self):
-        defaults = {"router_enabled": True}
+        defaults = {"enable_thinking": True}
         settings = self.settings_repo.get(self.conn, defaults)
         self.assertEqual(settings, defaults)
 
-        self.settings_repo.save(self.conn, {"router_enabled": False, "theme": "dark"})
+        self.settings_repo.save(self.conn, {"enable_thinking": False, "theme": "dark"})
         saved = self.settings_repo.get(self.conn, defaults)
-        self.assertFalse(saved["router_enabled"])
+        self.assertFalse(saved["enable_thinking"])
         self.assertEqual(saved["theme"], "dark")
 
     def test_memory_repository(self):
