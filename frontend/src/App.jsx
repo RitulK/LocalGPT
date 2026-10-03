@@ -4,6 +4,7 @@ import ChatWindow from './components/ChatWindow';
 import KnowledgeBase from './components/KnowledgeBase';
 import ModelManagement from './components/ModelManagement';
 import SettingsPanel from './components/SettingsPanel';
+import MemoryGraphVisualizer from './components/MemoryGraphVisualizer';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -35,6 +36,8 @@ function App() {
   const [documents, setDocuments] = useState([]);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
   const [useRag, setUseRag] = useState(false);
+  const [memoryGraph, setMemoryGraph] = useState({ nodes: [], edges: [] });
+  const [selectedMemoryIds, setSelectedMemoryIds] = useState([]);
 
   const currentConversation = conversations.find(c => c.id === currentConversationId);
 
@@ -44,6 +47,7 @@ function App() {
     fetchModels();
     fetchSettings();
     fetchDocuments();
+    fetchMemoryGraph();
     checkOllamaHealth();
   }, []);
 
@@ -91,6 +95,22 @@ function App() {
     } catch (error) {
       console.error('Failed to fetch documents:', error);
     }
+  };
+
+  const fetchMemoryGraph = async () => {
+    try {
+      const response = await fetch(`${API_URL}/memories/graph`);
+      const data = await response.json();
+      setMemoryGraph(data);
+    } catch (error) {
+      console.error('Failed to fetch memory graph:', error);
+    }
+  };
+
+  const handleToggleMemory = (nodeId) => {
+    setSelectedMemoryIds((prev) =>
+      prev.includes(nodeId) ? prev.filter((id) => id !== nodeId) : [...prev, nodeId]
+    );
   };
 
   const fetchConversations = async () => {
@@ -265,6 +285,10 @@ function App() {
               onSelectedDocumentIdsChange={setSelectedDocumentIds}
               useRag={useRag}
               onToggleRag={setUseRag}
+              memoryNodes={memoryGraph.nodes || []}
+              selectedMemoryIds={selectedMemoryIds}
+              onToggleMemory={handleToggleMemory}
+              onRefreshMemories={fetchMemoryGraph}
             />
           )}
 
@@ -277,6 +301,13 @@ function App() {
               onSelectedDocumentIdsChange={setSelectedDocumentIds}
               useRag={useRag}
               onToggleRag={setUseRag}
+            />
+          )}
+
+          {activeTab === 'memory' && (
+            <MemoryGraphVisualizer
+              apiUrl={API_URL}
+              onRefreshCount={() => fetchMemoryGraph()}
             />
           )}
 

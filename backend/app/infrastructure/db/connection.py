@@ -88,6 +88,33 @@ def init_db(db_path: Path = DB_PATH) -> None:
                 ON documents(status);
             CREATE INDEX IF NOT EXISTS idx_document_chunks_document_id
                 ON document_chunks(document_id);
+
+            CREATE TABLE IF NOT EXISTS memory_nodes (
+                id TEXT PRIMARY KEY,
+                node_type TEXT NOT NULL,
+                title TEXT,
+                content TEXT NOT NULL,
+                source_conversation_id INTEGER,
+                source_message_id INTEGER,
+                metadata TEXT DEFAULT '{}',
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS memory_edges (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id TEXT NOT NULL,
+                target_id TEXT NOT NULL,
+                relation TEXT NOT NULL,
+                metadata TEXT DEFAULT '{}',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (source_id) REFERENCES memory_nodes(id) ON DELETE CASCADE,
+                FOREIGN KEY (target_id) REFERENCES memory_nodes(id) ON DELETE CASCADE,
+                UNIQUE(source_id, target_id, relation)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_memory_edges_source ON memory_edges(source_id);
+            CREATE INDEX IF NOT EXISTS idx_memory_edges_target ON memory_edges(target_id);
+            CREATE INDEX IF NOT EXISTS idx_memory_nodes_type ON memory_nodes(node_type);
             """
         )
         message_columns = {

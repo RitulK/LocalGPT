@@ -2,6 +2,33 @@
 
 All notable repository changes are recorded here, newest first.
 
+## 2026-10-03
+
+### P5-S3 Interactive Memory Graph Visualizer & Linker
+
+- Built interactive HTML5 Canvas force-directed graph visualizer component (`MemoryGraphVisualizer.jsx`).
+- Supported real-time node dragging, canvas panning, zoom controls, and physics simulation with velocity damping.
+- Added visual edge creation tool enabling users to draw `relates_to` relationships between any two memories.
+- Built slide-out node inspector drawer with full markdown rendering, node metadata, connected edges, and cascade deletion.
+- Added "Memory Graph" navigation tab with brain icon to `Sidebar.jsx`.
+
+### P5-S2 Chat Save Actions & Plug-and-Play Memory Context
+
+- Added hover action menu to assistant message bubbles in `MessageBubble.jsx` ("Save to Memory" and "Save thread up to here").
+- Integrated instant toast notifications upon memory capture.
+- Added "Memory" button with active selection count badge to chat composer in `ChatWindow.jsx`.
+- Created searchable memory picker popover with live selection toggles and active memory chips above input.
+- Updated `ChatRequest` and `ChatService.stream_chat` to accept `memory_node_ids`, compile graph context, inject it into LLM prompt, and report `memories_used` in SSE metadata events.
+
+### P5-S1 Graph Memory Backend & LangGraph Context Compiler
+
+- Added SQLite graph schema with `memory_nodes` and `memory_edges` tables, indexes, and cascading foreign keys.
+- Implemented `MemoryGraphRepository` for node/edge CRUD, subgraph traversal, and graph export.
+- Created `MemoryGraphService` with `capture_message`, `capture_thread` (with automatic sequential `follows` edges), custom edge creation, and `compile_context(node_ids, depth=1)`.
+- Added endpoints `POST /memories/capture/message`, `POST /memories/capture/thread`, `POST /memories/edges`, `GET /memories/graph`, and polymorphic `DELETE /memories/{memory_id}`.
+- Added full unit test coverage in `test_memory_graph.py` and updated `test_chat_service.py` (30/30 pytest tests passing).
+
+
 ## 2026-10-02
 
 ### P4-S1 Model router deletion and cleanup

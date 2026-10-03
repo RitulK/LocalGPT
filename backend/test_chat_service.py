@@ -63,6 +63,40 @@ class ChatServiceTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(any("metadata" in chunk for chunk in chunks))
         self.assertTrue(any("done" in chunk for chunk in chunks))
 
+    @patch("app.services.chat_service.memory_graph_service")
+    @patch("app.services.chat_service.message_repo")
+    @patch("app.services.chat_service.conversation_repo")
+    @patch("app.services.chat_service.settings_repo")
+    @patch("app.services.chat_service.llm_gateway")
+    async def test_stream_chat_injects_memory_context(
+        self, mock_llm_gateway, mock_settings_repo, mock_conv_repo, mock_msg_repo, mock_memory_service
+    ):
+        mock_settings_repo.get.return_value = {}
+        mock_conv_repo.create.return_value = {"id": 1}
+        mock_conv_repo.get.return_value = {"id": 1, "title": "Chat"}
+        mock_msg_repo.list_by_conversation.return_value = []
+        mock_memory_service.compile_context.return_value = "### Memory: Context A"
+
+        async def dummy_stream(*args, **kwargs):
+            yield "Hello"
+
+        mock_llm_gateway.stream_chat.side_effect = dummy_stream
+
+        request = ChatRequest(
+            prompt="Tell me about A",
+            model="ollama/qwen:4b",
+            memory_node_ids=["mem_1"]
+        )
+        chunks = []
+        async for item in self.service.stream_chat(request, conversation_id=1):
+            chunks.append(item)
+
+        mock_memory_service.compile_context.assert_called_once()
+        call_args = mock_llm_gateway.stream_chat.call_args[0]
+        messages_sent = call_args[1]
+        self.assertTrue(any("Memory: Context A" in m["content"] for m in messages_sent if m["role"] == "system"))
+
+
 
 if __name__ == "__main__":
     unittest.main()

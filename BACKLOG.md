@@ -210,47 +210,72 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 
 ---
 
-## Phase 5 — Memory that works
+## Phase 5 — Graph Memory & Context Plugins
 
-> Goal: make the dead `memories` table actually influence chat output.
+> Goal: Build an interconnected knowledge graph of user memories (messages and thread snapshots). Users capture insights from any chat, visualize linked concepts, and plug memories dynamically into new conversations as rich graph context.
 
 ---
 
-### [P5-S1] Memory embeddings on create
+### [P5-S1] Graph Memory Backend & LangGraph Context Compiler
 
 - **ID:** P5-S1
-- **Status:** todo
+- **Status:** completed
+- **Phase:** 5
+- **Priority:** high
+- **Estimate:** M (~2–3 h)
+- **Depends on:** P1-S3
+- **Tags:** #graph #memory #langgraph
+- **Description:** Implement SQLite graph storage (`memory_nodes` and `memory_edges` tables) and a LangGraph traversal compiler. Support saving individual messages as nodes, and saving thread snapshots (conversations up to message $N$) where sequential messages are automatically linked with directed `follows` edges. Provide APIs for creating custom `relates_to` conceptual links, querying subgraphs, and compiling selected nodes + neighbors into structured chat context.
+- **Acceptance criteria:**
+  - [x] Tables `memory_nodes` (`id`, `node_type`, `title`, `content`, `source_conversation_id`, `source_message_id`, `metadata`, `created_at`) and `memory_edges` (`id`, `source_id`, `target_id`, `relation`, `metadata`, `created_at`) created in SQLite
+  - [x] `POST /memories/capture/message` captures an individual message into `memory_nodes`
+  - [x] `POST /memories/capture/thread` captures all messages up to target message ID and automatically generates sequential `follows` edges between consecutive turns
+  - [x] `POST /memories/edges` creates custom `relates_to` relationships between any two nodes
+  - [x] `GET /memories/graph` returns the full graph structure (nodes + edges) with node_type and conversation filters
+  - [x] `DELETE /memories/{id}` cascades to remove the node and all connected edges
+  - [x] `MemoryGraphService.compile_context(node_ids, depth=1)` traverses selected nodes and 1-hop connected neighbors using LangGraph/graph traversal, producing a formatted markdown context block
+- **Verification:** Unit test capturing a 4-message thread snapshot; verify 4 nodes and 3 `follows` edges created in SQLite; verify `compile_context` resolves connected context.
+
+---
+
+### [P5-S2] Chat Save Actions & Plug-and-Play Memory Context
+
+- **ID:** P5-S2
+- **Status:** completed
+- **Phase:** 5
+- **Priority:** high
+- **Estimate:** M (~2–3 h)
+- **Depends on:** P5-S1
+- **Tags:** #chat #ui #memory
+- **Description:** Add intuitive memory capture actions directly onto chat message bubbles, and enable plug-and-play memory context injection in the chat composer so users can easily select and attach memory nodes to any active conversation.
+- **Acceptance criteria:**
+  - [x] Assistant message bubbles in `ChatWindow.jsx` have hover action menu with "Save message to Memory" and "Save thread up to here"
+  - [x] Clicking a save action invokes capture API and displays a success toast notification
+  - [x] `ChatWindow.jsx` composer adds a "Memory" button next to "Knowledge" displaying an active memory count badge
+  - [x] Clicking "Memory" opens a selector popover to search, preview, and toggle memory nodes for the conversation
+  - [x] Selected memories render as dismissible chips above the message input
+  - [x] `ChatRequest` schema and `ChatService.stream_chat` accept `memory_node_ids: Optional[List[str]]` and prepend compiled graph context before conversation history
+- **Verification:** Save an assistant response to memory from chat; start a new conversation and toggle that memory on; ask a question referencing the saved note; verify LLM output reflects the injected memory context.
+
+---
+
+### [P5-S3] Interactive Memory Graph Visualizer & Linker
+
+- **ID:** P5-S3
+- **Status:** completed
 - **Phase:** 5
 - **Priority:** medium
 - **Estimate:** M (~2–4 h)
-- **Depends on:** P3-S1
-- **Tags:** #rag #memory
-- **Description:** Add a `localgpt_memories` Chroma collection. When a memory is created via `POST /memories`, embed it (using `OllamaEmbeddings` from LangChain) and store the embedding alongside the metadata `{memory_id, kind, source}`. When a memory is deleted, remove the matching Chroma entry.
-- **Acceptance criteria:**
-  - [ ] `ChromaStore` exposes `add_memory(memory_id, content, kind, source)` and `delete_memory(memory_id)`
-  - [ ] `POST /memories` returns within 500ms; embedding runs synchronously but is fast for short text
-  - [ ] `DELETE /memories/{id}` removes both the SQL row and the Chroma entry
-  - [ ] `rg "embedding" app/infrastructure/vector/chroma_store.py` shows the memory collection is separate from the document collection
-- **Verification:** Create a memory, delete it, query Chroma directly — the entry is gone.
-
----
-
-### [P5-S2] Inject top-k memories into the chat prompt
-
-- **ID:** P5-S2
-- **Status:** todo
-- **Phase:** 5
-- **Priority:** medium
-- **Estimate:** S (~1 h)
 - **Depends on:** P5-S1
-- **Tags:** #rag #memory
-- **Description:** Add `MemoryService.retrieve_relevant(prompt, k=3) -> list[Memory]`. In `ChatService.stream_chat`, after RAG retrieval and before LLM invocation, call this and prepend a system message listing the relevant memories.
+- **Tags:** #visualizer #canvas #graph #ui
+- **Description:** Build an interactive force-directed graph visualizer in the frontend (Memory view/tab) to render memory nodes and edges. Users can pan/zoom, drag nodes, inspect memory content, and interactively connect disparate memories with `relates_to` conceptual links.
 - **Acceptance criteria:**
-  - [ ] `MemoryService.retrieve_relevant` ≤ 25 LOC
-  - [ ] The injected memory block has the format: `"Relevant notes you have saved:\n- [memory 1]\n- [memory 2]\n- [memory 3]"`
-  - [ ] When no memories match, no system message is injected (no empty block)
-  - [ ] The `kind` and `source` parameters in the injection are filterable via settings (default: include all)
-- **Verification:** Create a memory "User prefers concise answers under 3 paragraphs"; ask "explain async/await"; confirm response is shorter than without the memory.
+  - [x] "Memory Graph" navigation tab available in `Sidebar.jsx`
+  - [x] Force-directed graph rendered via Canvas/SVG with distinct styling for node types (`message`, `thread_snapshot`, `preference`) and edge types (`follows` vs `relates_to`)
+  - [x] Clicking any node opens an inspection drawer showing title, full markdown content, creation timestamp, and connected edges
+  - [x] Visual linking tool: select source node and target node in visualizer to persist a `relates_to` edge via `POST /memories/edges`
+  - [x] Ability to delete nodes or edges directly from the visualizer with immediate canvas refresh
+- **Verification:** Open Memory tab, visually drag nodes, connect two separate thread memories with a `relates_to` link; reload page and confirm edge persists in graph layout.
 
 ---
 
@@ -342,6 +367,70 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 
 ---
 
+## Phase 8 — System 1 Decision Intelligence (Laya Engine)
+
+> Goal: Introduce local, zero-token, non-autoregressive decision models (Laya ModernBERT-large ONNX, ~20ms) for high-speed gating, classification, and automatic memory extraction without LLM generation overhead.
+
+---
+
+### [P8-S1] Local Laya ONNX runtime & Decision Service
+
+- **ID:** P8-S1
+- **Status:** todo
+- **Phase:** 8
+- **Priority:** high
+- **Estimate:** M (~2–3 h)
+- **Depends on:** P1-S1
+- **Tags:** #laya #system1 #onnx
+- **Description:** Implement a local, lightweight Decision Service running Laya (ModernBERT-large non-autoregressive encoder) via `onnxruntime`. Expose typed single-pass inference (`Noul`, `Choice`, `Score`) with sub-30ms latency on local hardware.
+- **Acceptance criteria:**
+  - [ ] `onnxruntime` dependency added to `backend/requirements.txt`
+  - [ ] `LayaDecisionService` implemented in `backend/app/infrastructure/decision/laya_service.py`
+  - [ ] Exposes `predict_noul(prompt: str, question: str) -> float` (calibrated binary probability 0.0 to 1.0)
+  - [ ] Exposes `predict_choice(prompt: str, categories: List[str]) -> Dict[str, float]`
+  - [ ] Single forward pass completes in < 40ms on CPU or Apple Silicon without autoregressive token generation
+- **Verification:** Unit test benchmarking `predict_noul` on test prompts; verify execution takes < 40ms and returns float between 0.0 and 1.0.
+
+---
+
+### [P8-S2] Dynamic RAG Retrieval Guard
+
+- **ID:** P8-S2
+- **Status:** todo
+- **Phase:** 8
+- **Priority:** medium
+- **Estimate:** S (~1 h)
+- **Depends on:** P8-S1, P3-S2
+- **Tags:** #rag #guard #laya
+- **Description:** Use Laya's `Noul` decision to dynamically guard Chroma vector retrieval. When `use_rag=true`, evaluate whether the prompt actually requires document context; skip Chroma search on greetings, follow-ups, or general knowledge to eliminate context pollution and reduce latency.
+- **Acceptance criteria:**
+  - [ ] In `ChatService.stream_chat`, when `request.use_rag` is true, invoke `LayaDecisionService.predict_noul(prompt, "Does this prompt require searching uploaded knowledge documents?")`
+  - [ ] If probability < 0.45 (e.g. "Hi", "Thanks", "Write a hello world script"), Chroma retrieval is skipped
+  - [ ] If skipped, `MetadataEvent.rag_used` is set to `False` and `MetadataEvent.rag_bypassed` is set to `True`
+  - [ ] Chat UI displays a subtle indicator when RAG retrieval is bypassed for conversational inputs
+- **Verification:** Send "Hello there" with RAG enabled; verify retrieval is skipped with 0ms Chroma delay. Send "What is the policy in Section 2 of handbook.pdf"; verify RAG triggers normally.
+
+---
+
+### [P8-S3] Automatic Memory & Rule Extraction into Memory Graph
+
+- **ID:** P8-S3
+- **Status:** todo
+- **Phase:** 8
+- **Priority:** medium
+- **Estimate:** M (~2 h)
+- **Depends on:** P8-S1, P5-S1
+- **Tags:** #memory #laya #extraction
+- **Description:** Automatically detect when a user prompt contains persistent preferences, coding guidelines, or project rules using Laya, and automatically create a `preference` node linked into the Memory Graph.
+- **Acceptance criteria:**
+  - [ ] Post-prompt hook in `ChatService` evaluates user message with Laya: `predict_noul(prompt, "Does this message declare a persistent rule, instruction, or preference for future conversations?")`
+  - [ ] When confidence exceeds threshold (> 0.8), automatically create a node in `memory_nodes` with `node_type="preference"`
+  - [ ] An edge is created automatically linking the preference node to the source conversation
+  - [ ] Frontend displays a non-intrusive toast: "Captured preference into Memory Graph: [Rule]" with a 1-click "Undo" button
+- **Verification:** Send prompt "Always write responses in bullet points and format code in TypeScript"; verify a new node is automatically added to `memory_nodes` with `node_type="preference"`.
+
+---
+
 ## Phase Summary
 
 | Phase | Stories | Status |
@@ -350,11 +439,12 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 | 2 — Replace providers | P2-S1, P2-S2, P2-S3 | Done |
 | 3 — RAG simplification | P3-S1, P3-S2 | Done |
 | 4 — Remove router | P4-S1 | Done |
-| 5 — Memory works | P5-S1, P5-S2 | not started |
+| 5 — Graph Memory & Context Plugins | P5-S1, P5-S2, P5-S3 | Done |
 | 6 — Async ingestion | P6-S1 | not started |
 | 7 — Hygiene | P7-S1, P7-S2, P7-S3 | not started |
+| 8 — System 1 Decision Intelligence (Laya) | P8-S1, P8-S2, P8-S3 | not started |
 
-**Total: 13 stories across 7 phases.**
+**Total: 17 stories across 8 phases.**
 
 ---
 

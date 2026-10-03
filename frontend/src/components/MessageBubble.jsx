@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Copy, Check, User, Bot } from 'lucide-react';
+import { Copy, Check, User, Bot, Brain, GitBranch } from 'lucide-react';
 
 const normalizeMarkdownTables = (content) => (
   content
@@ -11,7 +11,7 @@ const normalizeMarkdownTables = (content) => (
     .replace(/(\|[^\n|]+(?:\|[^\n|]+)+\|?)\s+(\|?\s*:?-{3,}:?\s*\|)/g, '$1\n$2')
 );
 
-export default function MessageBubble({ message }) {
+export default function MessageBubble({ message, onSaveMessage, onSaveThread }) {
   const [copied, setCopied] = useState(false);
 
   const copyToClipboard = (text) => {
@@ -107,24 +107,48 @@ export default function MessageBubble({ message }) {
           )}
         </div>
 
-        {/* Copy button for assistant messages */}
+        {/* Action bar for assistant messages */}
         {!isUser && message.content && !message.isStreaming && (
-          <button
-            onClick={() => copyToClipboard(message.content)}
-            className="mt-2 text-[10px] text-[#667b76] hover:text-[#8ffcf0] flex items-center gap-1 transition"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3 h-3" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Copy className="w-3 h-3" />
-                Copy response
-              </>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => copyToClipboard(message.content)}
+              className="text-[10px] text-[#667b76] hover:text-[#8ffcf0] flex items-center gap-1 transition"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3 h-3 text-emerald-400" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3 h-3" />
+                  Copy
+                </>
+              )}
+            </button>
+
+            {onSaveMessage && (
+              <button
+                onClick={() => onSaveMessage(message)}
+                className="text-[10px] text-[#667b76] hover:text-[#8ffcf0] flex items-center gap-1 transition"
+                title="Save this response as a Memory Node"
+              >
+                <Brain className="w-3 h-3 text-[#20dcca]" />
+                Save to Memory
+              </button>
             )}
-          </button>
+
+            {onSaveThread && message.id && (
+              <button
+                onClick={() => onSaveThread(message.id)}
+                className="text-[10px] text-[#667b76] hover:text-[#8ffcf0] flex items-center gap-1 transition"
+                title="Save conversation thread up to this response"
+              >
+                <GitBranch className="w-3 h-3 text-emerald-400" />
+                Save thread up to here
+              </button>
+            )}
+          </div>
         )}
 
         {/* Timestamp */}

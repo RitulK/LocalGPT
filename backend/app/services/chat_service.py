@@ -11,6 +11,7 @@ from app.infrastructure.db.repositories import (
     SettingsRepository,
 )
 from app.infrastructure.llm.gateway import LLMGateway
+from app.services.memory_graph_service import memory_graph_service
 from app.services.runtime import (
     FORMAT_SYSTEM_PROMPT,
     MAX_CONTEXT_MESSAGES,
@@ -47,7 +48,16 @@ class ChatService:
             if request.use_rag and request.document_ids:
                 rag_sources = await rag_service.retrieve(request.prompt, request.document_ids, llm_gateway)
 
+            memory_context = ""
+            if request.memory_node_ids:
+                memory_context = memory_graph_service.compile_context(conn, request.memory_node_ids, depth=1)
+
             messages = [{"role": "system", "content": FORMAT_SYSTEM_PROMPT}]
+            if memory_context:
+                messages.append({
+                    "role": "system",
+                    "content": memory_context,
+                })
             if rag_sources:
                 messages.append({
                     "role": "system",
@@ -68,6 +78,7 @@ class ChatService:
             conversation_id=cid,
             rag_used=bool(rag_sources),
             sources=public_sources(rag_sources),
+            memories_used=request.memory_node_ids or [],
             thinking_enabled=False,
         )
         yield f"data: {metadata_event.model_dump_json()}\n\n"

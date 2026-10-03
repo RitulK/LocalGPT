@@ -1,5 +1,6 @@
 import {
   Bot,
+  Brain,
   Database,
   FileText,
   MessageCircle,
@@ -26,6 +27,7 @@ export default function Sidebar({
   const navItems = [
     { id: 'chat', label: 'Chat', icon: MessageCircle },
     { id: 'knowledge', label: 'Knowledge', icon: FileText },
+    { id: 'memory', label: 'Memory Graph', icon: Brain },
     { id: 'models', label: 'Models', icon: Database },
     { id: 'settings', label: 'Settings', icon: Settings }
   ];

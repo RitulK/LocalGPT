@@ -50,11 +50,16 @@ export default function ChatWindow({
   documents,
   selectedDocumentIds,
   useRag,
-  onToggleRag
+  onToggleRag,
+  memoryNodes = [],
+  selectedMemoryIds = [],
+  onToggleMemory,
+  onRefreshMemories
 }) {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState(null);
   const [showSources, setShowSources] = useState(false);
   const messagesContainerRef = useRef(null);
   const textareaRef = useRef(null);
@@ -130,7 +135,8 @@ export default function ChatWindow({
           conversation_id: conversation.id,
           conversation_history: history,
           use_rag: useRag && selectedDocumentIds.length > 0,
-          document_ids: selectedDocumentIds
+          document_ids: selectedDocumentIds,
+          memory_node_ids: selectedMemoryIds.length > 0 ? selectedMemoryIds : undefined
         })
       });
 
@@ -200,6 +206,48 @@ export default function ChatWindow({
       });
     } finally {
       setIsStreaming(false);
+    }
+  };
+
+  const showToast = (message) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleCaptureMessage = async (msg) => {
+    try {
+      const res = await fetch(`${apiUrl}/memories/capture/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversation_id: conversation.id,
+          message_id: msg.id || 0
+        })
+      });
+      if (!res.ok) throw new Error('Failed to capture message');
+      showToast('Saved note to Memory Graph!');
+      if (onRefreshMemories) onRefreshMemories();
+    } catch (err) {
+      setError('Could not save note to memory');
+    }
+  };
+
+  const handleCaptureThread = async (upToMessageId) => {
+    try {
+      const res = await fetch(`${apiUrl}/memories/capture/thread`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversation_id: conversation.id,
+          up_to_message_id: upToMessageId
+        })
+      });
+      if (!res.ok) throw new Error('Failed to capture thread');
+      const data = await res.json();
+      showToast(`Saved thread (${data.nodes?.length || 0} turns) to Memory Graph!`);
+      if (onRefreshMemories) onRefreshMemories();
+    } catch (err) {
+      setError('Could not save thread to memory');
     }
   };
 
@@ -327,6 +375,9 @@ export default function ChatWindow({
               selectedDocumentIds={selectedDocumentIds}
               useRag={useRag}
               onToggleRag={onToggleRag}
+              memoryNodes={memoryNodes}
+              selectedMemoryIds={selectedMemoryIds}
+              onToggleMemory={onToggleMemory}
               large
             />
 
@@ -343,6 +394,8 @@ export default function ChatWindow({
               <MessageBubble
                 key={`${conversation.id}-${index}-${message.timestamp?.getTime() || index}`}
                 message={message}
+                onSaveMessage={handleCaptureMessage}
+                onSaveThread={handleCaptureThread}
               />
             ))}
           </div>
@@ -411,9 +464,19 @@ export default function ChatWindow({
               selectedDocumentIds={selectedDocumentIds}
               useRag={useRag}
               onToggleRag={onToggleRag}
+              memoryNodes={memoryNodes}
+              selectedMemoryIds={selectedMemoryIds}
+              onToggleMemory={onToggleMemory}
             />
           </div>
         </footer>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl border border-[#28ead8]/30 bg-[#071f1c]/95 px-4 py-2.5 text-xs text-[#8ffcf0] shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2">
+          <Brain className="h-4 w-4 text-[#20dcca]" />
+          <span>{toast}</span>
+        </div>
       )}
     </main>
   );
@@ -433,6 +496,9 @@ function Composer({
   selectedDocumentIds,
   useRag,
   onToggleRag,
+  memoryNodes = [],
+  selectedMemoryIds = [],
+  onToggleMemory,
   large = false
 }) {
   const selectedReadyCount = selectedDocumentIds.filter((id) =>
@@ -446,6 +512,34 @@ function Composer({
         large ? 'p-4' : 'p-3'
       }`}
     >
+      {selectedMemoryIds.length > 0 && (
+        <div className="mb-2.5 flex flex-wrap items-center gap-1.5 px-1">
+          <span className="text-[10px] uppercase tracking-wider text-[#637a75] font-semibold mr-1">
+            Plugged Memories:
+          </span>
+          {selectedMemoryIds.map((id) => {
+            const node = memoryNodes.find((n) => n.id === id);
+            return (
+              <span
+                key={id}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#28ead8]/30 bg-[#20dcca]/10 px-2.5 py-1 text-xs text-[#8ffcf0]"
+              >
+                <Brain className="h-3 w-3 text-[#20dcca]" />
+                <span className="max-w-[150px] truncate">{node?.title || id}</span>
+                <button
+                  type="button"
+                  onClick={() => onToggleMemory(id)}
+                  className="rounded-full p-0.5 hover:bg-white/10 hover:text-white"
+                  title="Remove context"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+
       <textarea
         ref={textareaRef}
         value={input}
@@ -465,6 +559,12 @@ function Composer({
             selectedModel={selectedModel}
             isStreaming={isStreaming}
             onSelectModel={onSelectModel}
+          />
+          <MemoryPicker
+            memoryNodes={memoryNodes}
+            selectedMemoryIds={selectedMemoryIds}
+            onToggleMemory={onToggleMemory}
+            isStreaming={isStreaming}
           />
           <button
             type="button"
@@ -496,6 +596,108 @@ function Composer({
         </button>
       </div>
     </form>
+  );
+}
+
+function MemoryPicker({
+  memoryNodes = [],
+  selectedMemoryIds = [],
+  onToggleMemory,
+  isStreaming
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const pickerRef = useRef(null);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, []);
+
+  const filtered = memoryNodes.filter((m) =>
+    (m.title || m.id).toLowerCase().includes(search.toLowerCase()) ||
+    (m.content || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div ref={pickerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        disabled={isStreaming}
+        className={`inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+          selectedMemoryIds.length > 0
+            ? 'border-[#28ead8]/25 bg-[#20dcca]/10 text-[#8ffcf0]'
+            : 'border-white/[0.08] bg-white/[0.035] text-[#8da19c]'
+        }`}
+        title="Plug in memories from graph"
+      >
+        <Brain className="h-3.5 w-3.5 text-[#20dcca]" />
+        Memory
+        {selectedMemoryIds.length > 0 && (
+          <span className="rounded-full bg-[#20dcca] px-1.5 py-0.2 text-[10px] font-semibold text-[#06211e]">
+            {selectedMemoryIds.length}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-80 overflow-hidden rounded-2xl border border-[#28ead8]/22 bg-[#07100f] p-3 shadow-2xl backdrop-blur-2xl">
+          <div className="mb-2 text-xs font-semibold text-white">Plug Memory Context</div>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search memories..."
+            className="mb-2 w-full rounded-xl border border-white/[0.08] bg-[#0b1716] px-3 py-1.5 text-xs text-white placeholder:text-[#6b827d] outline-none focus:border-[#28ead8]/30"
+          />
+          <div className="max-h-56 overflow-y-auto space-y-1.5">
+            {filtered.length === 0 ? (
+              <div className="p-3 text-center text-xs text-[#6b827d]">
+                No memories found. Hover an assistant message in chat to save notes or thread snapshots!
+              </div>
+            ) : (
+              filtered.map((node) => {
+                const isChecked = selectedMemoryIds.includes(node.id);
+                return (
+                  <label
+                    key={node.id}
+                    className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-2 text-xs transition ${
+                      isChecked
+                        ? 'border-[#28ead8]/25 bg-[#20dcca]/10 text-[#e7fff9]'
+                        : 'border-white/[0.05] bg-white/[0.02] text-[#8da19c] hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => onToggleMemory(node.id)}
+                      className="mt-0.5 rounded border-white/[0.2] bg-transparent text-[#20dcca] focus:ring-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate font-medium text-white">{node.title || node.id}</span>
+                        <span className="rounded bg-white/[0.08] px-1 py-0.2 text-[9px] uppercase tracking-wider text-[#8ffcf0]">
+                          {node.node_type === 'thread_snapshot' ? 'thread' : node.node_type}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 line-clamp-1 text-[11px] text-[#6b827d]">
+                        {node.content}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
