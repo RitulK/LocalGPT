@@ -30,7 +30,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 ```bash
 cd backend
-python3 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate
 
 # Install one by one to avoid build issues
@@ -67,7 +67,7 @@ source $HOME/.cargo/env
 ```bash
 python3 --version  # Should be 3.9-3.12 for best compatibility
 rm -rf venv
-python3 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```

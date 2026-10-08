@@ -93,7 +93,7 @@ if [ -d "backend/venv" ]; then
     echo -e "${GREEN}✓${NC} Python virtual environment exists"
     ((PASSED++))
 else
-    echo -e "${YELLOW}⚠${NC} Python virtual environment not found (run: cd backend && python3 -m venv venv)"
+    echo -e "${YELLOW}⚠${NC} Python virtual environment not found (run: cd backend && python3.12 -m venv venv)"
     ((FAILED++))
 fi
 

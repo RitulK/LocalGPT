@@ -66,12 +66,13 @@ else
     print_status "Found $MODEL_COUNT Ollama model(s)"
 fi
 
-# Check Python
-if ! command -v python3 &> /dev/null; then
-    print_error "Python 3 is not installed"
+# Check Python 3.12
+if ! command -v python3.12 &> /dev/null; then
+    print_error "Python 3.12 is not installed"
+    echo "Please install Python 3.12 and ensure python3.12 is on your PATH"
     exit 1
 else
-    PYTHON_VERSION=$(python3 --version | cut -d' ' -f2)
+    PYTHON_VERSION=$(python3.12 --version | cut -d' ' -f2)
     print_status "Python $PYTHON_VERSION is installed"
 fi
 
@@ -88,11 +89,15 @@ echo ""
 echo "Setting up backend..."
 cd backend
 
-# Create virtual environment if it doesn't exist
-if [ ! -d "venv" ]; then
+# Create the canonical Python 3.12 virtual environment if it doesn't exist.
+if [ ! -x "venv/bin/python" ]; then
     echo "Creating Python virtual environment..."
-    python3 -m venv venv
+    python3.12 -m venv venv
     print_status "Virtual environment created"
+elif ! venv/bin/python --version | grep -q '^Python 3\.12\.'; then
+    print_error "backend/venv must use Python 3.12"
+    echo "Remove backend/venv and run this script again to recreate it"
+    exit 1
 fi
 
 # Activate virtual environment
@@ -107,17 +112,17 @@ echo "Installing FastAPI and dependencies (this may take a minute)..."
 pip install -q --prefer-binary -r requirements.txt || {
     echo ""
     print_warning "Standard installation failed. Trying alternative method..."
-    echo "This might happen with newer Python versions (3.13+)."
+    echo "This might indicate an incompatible Python environment."
     echo "Installing with --only-binary for compatible packages..."
     pip install fastapi uvicorn httpx python-multipart --prefer-binary
     pip install "pydantic>=2.0,<3.0" --prefer-binary || {
         print_error "Failed to install dependencies."
         echo ""
-        echo "Your Python version: $(python3 --version)"
-        echo "Recommended: Python 3.9 - 3.12"
+        echo "Your Python version: $(python --version)"
+        echo "Required: Python 3.12"
         echo ""
         echo "Options:"
-        echo "1. Use Python 3.9-3.12 (recommended)"
+        echo "1. Use Python 3.12"
         echo "2. Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
         exit 1
     }

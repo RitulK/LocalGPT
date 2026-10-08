@@ -20,7 +20,7 @@
 - Shared request/response models and pure helpers belong in
   `backend/app/domain/`.
 - Keep API handlers thin and avoid importing one API router from another.
-- Use the existing Python virtual environment at `backend/.venv`.
+- Use the existing Python 3.12 virtual environment at `backend/venv`.
 - Prefer the existing `unittest` style; pytest is the test runner and must
   execute all `backend/test_*.py` files.
 - Do not change dependency manifests unless a dependency is required by the
@@ -29,8 +29,8 @@
 ## Validation commands
 
 ```bash
-backend/.venv/bin/python -m pytest -q
-backend/.venv/bin/python -m compileall -q backend
+backend/venv/bin/python -m pytest -q
+backend/venv/bin/python -m compileall -q backend
 ```
 
 ## Documentation ownership

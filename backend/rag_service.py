@@ -56,7 +56,7 @@ class RAGService:
         name = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("._")
         return name or "document"
 
-    async def ingest_upload(self, upload_file, ollama_client) -> Dict[str, Any]:
+    async def save_upload(self, upload_file) -> Dict[str, Any]:
         self.ensure_storage()
         self.validate_upload(upload_file.filename, upload_file.content_type or "")
 
@@ -74,11 +74,21 @@ class RAGService:
             content = await upload_file.read()
             file_path.write_bytes(content)
             database.update_document_file_path(document_id, str(file_path))
-            await self.index_document(document_id, ollama_client)
         except Exception as exc:
             database.update_document_status(document_id, "failed", 0, str(exc))
+            raise
 
         return database.get_document(document_id)
+
+    async def ingest_upload(self, upload_file, ollama_client) -> Dict[str, Any]:
+        # Deprecated: use save_upload + index_document for async ingestion
+        document = await self.save_upload(upload_file)
+        try:
+            await self.index_document(document["id"], ollama_client)
+        except Exception:
+            pass # Error handled inside index_document
+        return database.get_document(document["id"])
+
 
     async def index_document(self, document_id: int, ollama_client) -> Dict[str, Any]:
         document = database.get_document(document_id)

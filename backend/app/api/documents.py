@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 
 from app.services import document_service
 
@@ -11,13 +11,14 @@ async def list_documents():
 
 
 @router.post("/documents")
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     try:
-        return {"document": await document_service.upload_document(file)}
+        return {"document": await document_service.upload_document(file, background_tasks)}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Document upload failed: {exc}")
+
 
 
 @router.get("/documents/{document_id}")

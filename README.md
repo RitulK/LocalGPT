@@ -277,7 +277,7 @@ mindmap
 
 ### Prerequisites
 
-- **Python 3.12+** (not 3.13/3.14 - compatibility issues)
+- **Python 3.12** (required)
 - **Node.js 18+** and npm
 - **Ollama** installed and running
 
@@ -532,7 +532,7 @@ allow_origins=["http://localhost:5173", "http://localhost:5174"]
 <details>
 <summary><b>⚠️ Python version issues</b></summary>
 
-Use Python 3.12 (not 3.13 or 3.14):
+Use Python 3.12:
 
 ```bash
 # Install Python 3.12

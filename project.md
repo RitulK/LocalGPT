@@ -12,13 +12,13 @@ Backend:
 
 ```bash
 cd backend
-../backend/.venv/bin/python main.py
+venv/bin/python main.py
 ```
 
 Run all backend tests from the repository root:
 
 ```bash
-backend/.venv/bin/python -m pytest -q
+backend/venv/bin/python -m pytest -q
 ```
 
 Read [`repo.md`](repo.md) before making code changes. The backlog contract is

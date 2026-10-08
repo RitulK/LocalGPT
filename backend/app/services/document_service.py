@@ -12,8 +12,11 @@ def list_documents():
         return document_repo.list_all(conn)
 
 
-async def upload_document(file):
-    return await rag_service.ingest_upload(file, llm_gateway)
+async def upload_document(file, background_tasks):
+    document = await rag_service.save_upload(file)
+    background_tasks.add_task(rag_service.index_document, document["id"], llm_gateway)
+    return document
+
 
 
 def get_document(document_id: int):

@@ -6,7 +6,7 @@ Before starting, ensure you have:
 
 - [ ] **Ollama installed** - Download from [ollama.com](https://ollama.com)
 - [ ] **At least one model** - Run `ollama pull llama3.2`
-- [ ] **Python 3.8+** - Check with `python3 --version`
+- [ ] **Python 3.12** - Check with `python3.12 --version`
 - [ ] **Node.js 18+** - Check with `node --version`
 
 ## Installation (5 minutes)
@@ -42,7 +42,7 @@ ollama pull nomic-embed-text
 #### Step 2: Setup Backend
 ```bash
 cd backend
-python3 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
