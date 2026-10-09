@@ -1,4 +1,5 @@
 from app.services.runtime import llm_gateway
+from app.core.logging import logger
 
 
 async def list_models():
@@ -7,5 +8,5 @@ async def list_models():
         try:
             models.extend(await llm_gateway.get_models(provider))
         except Exception as exc:
-            print(f"Warning: Could not fetch {provider} models: {exc}")
+            logger.warning("could_not_fetch_models", provider=provider, error=str(exc))
     return {"models": models}
