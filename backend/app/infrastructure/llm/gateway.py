@@ -6,6 +6,7 @@ from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_openai import ChatOpenAI
 
 from app.domain.models import ContentEvent, ReasoningEvent
+from app.core.config import settings
 
 
 def parse_model_spec(model_spec: str) -> Tuple[str, str, Optional[str]]:
@@ -24,10 +25,10 @@ class LLMGateway:
     """Unified Gateway for LLM providers using provider:model@host convention."""
 
     def __init__(self, ollama_url: Optional[str] = None, vllm_url: Optional[str] = None, nvidia_url: Optional[str] = None, nvidia_api_key: Optional[str] = None):
-        self.ollama_url = ollama_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-        self.vllm_url = vllm_url or os.getenv("VLLM_BASE_URL", "http://localhost:8000/v1")
-        self.nvidia_url = nvidia_url or os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
-        self.nvidia_api_key = nvidia_api_key or os.getenv("NVIDIA_API_KEY", "")
+        self.ollama_url = ollama_url or settings.OLLAMA_BASE_URL
+        self.vllm_url = vllm_url or settings.VLLM_BASE_URL
+        self.nvidia_url = nvidia_url or settings.NVIDIA_BASE_URL
+        self.nvidia_api_key = nvidia_api_key or settings.NVIDIA_API_KEY
 
     def _get_client(self, model_spec: str, provider: Optional[str] = None):
         parsed_provider, model_name, custom_host = parse_model_spec(model_spec)

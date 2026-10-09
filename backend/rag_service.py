@@ -5,12 +5,13 @@ from typing import Any, Dict, List, Optional
 
 import database
 from app.infrastructure.vector.chroma_store import ChromaStore
+from app.core.config import settings
 
 
-DEFAULT_EMBEDDING_MODEL = os.getenv("RAG_EMBEDDING_MODEL", "nomic-embed-text")
-CHUNK_WORDS = int(os.getenv("RAG_CHUNK_WORDS", "800"))
-CHUNK_OVERLAP_WORDS = int(os.getenv("RAG_CHUNK_OVERLAP_WORDS", "120"))
-RETRIEVAL_LIMIT = int(os.getenv("RAG_RETRIEVAL_LIMIT", "5"))
+DEFAULT_EMBEDDING_MODEL = settings.RAG_EMBEDDING_MODEL
+CHUNK_WORDS = settings.RAG_CHUNK_WORDS
+CHUNK_OVERLAP_WORDS = settings.RAG_CHUNK_OVERLAP_WORDS
+RETRIEVAL_LIMIT = settings.RAG_RETRIEVAL_LIMIT
 
 
 class RAGService:
