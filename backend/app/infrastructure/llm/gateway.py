@@ -1,4 +1,5 @@
 import os
+import httpx
 from typing import Any, AsyncIterator, Dict, List, Optional, Tuple, Union
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -56,8 +57,42 @@ class LLMGateway:
                     yield ContentEvent(content=text)
 
     async def get_models(self, provider: str = "ollama") -> List[Dict[str, Any]]:
-        prefix = "openai:" if provider.lower() in ("vllm", "nvidia", "openai") else "ollama:"
-        return [{"name": f"{prefix}default-model"}]
+        if provider.lower() != "ollama":
+            # Cloud providers typically don't have a simple "tags" API like Ollama
+            return []
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{self.ollama_url}/api/tags")
+                response.raise_for_status()
+                data = response.json()
+
+                models = []
+                for m in data.get("models", []):
+                    models.append({
+                        "name": f"ollama:{m['name']}",
+                        "size": m.get("size", 0),
+                        "details": m.get("details", {}),
+                        "modified_at": m.get("modified_at")
+                    })
+                return models
+        except Exception:
+            return []
+
+    async def pull_model(self, model_id: str) -> Dict[str, Any]:
+        """Triggers an Ollama model pull. returns the final status."""
+        try:
+            async with httpx.AsyncClient(timeout=None) as client:
+                # Ollama /api/pull returns a stream of status updates
+                # We can either stream it back to the user or just wait for completion
+                response = await client.post(
+                    f"{self.ollama_url}/api/pull",
+                    json={"name": model_id, "stream": False}
+                )
+                response.raise_for_status()
+                return response.json()
+        except Exception as exc:
+            return {"status": "error", "error": str(exc)}
 
     async def embed(self, model: str, texts: List[str]) -> List[List[float]]:
         _, real_model, _ = parse_model_spec(model)

@@ -29,7 +29,9 @@ trap cleanup INT TERM
 # Start backend
 echo -e "${GREEN}Starting backend...${NC}"
 cd backend
-if [ -d "venv" ]; then
+if [ -d ".venv" ]; then
+    source .venv/bin/activate
+elif [ -d "venv" ]; then
     source venv/bin/activate
 fi
 python main.py &

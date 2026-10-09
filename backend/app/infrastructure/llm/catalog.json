@@ -1,0 +1,42 @@
+[
+  {
+    "id": "llama3.2",
+    "name": "Llama 3.2",
+    "description": "Lightweight and fast general purpose model",
+    "min_vram_gb": 4,
+    "recommended_vram_gb": 8,
+    "provider": "ollama"
+  },
+  {
+    "id": "qwen2.5-coder",
+    "name": "Qwen 2.5 Coder",
+    "description": "High-performance coding model",
+    "min_vram_gb": 8,
+    "recommended_vram_gb": 16,
+    "provider": "ollama"
+  },
+  {
+    "id": "mistral",
+    "name": "Mistral",
+    "description": "Efficient and powerful reasoning model",
+    "min_vram_gb": 8,
+    "recommended_vram_gb": 16,
+    "provider": "ollama"
+  },
+  {
+    "id": "phi3",
+    "name": "Phi-3",
+    "description": "Microsoft's high-capability small model",
+    "min_vram_gb": 2,
+    "recommended_vram_gb": 4,
+    "provider": "ollama"
+  },
+  {
+    "id": "gpt-4o",
+    "name": "GPT-4o",
+    "description": "Multimodal high-reasoning cloud model",
+    "min_vram_gb": 0,
+    "recommended_vram_gb": 0,
+    "provider": "cloud-openai"
+  }
+]

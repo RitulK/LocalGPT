@@ -14,6 +14,7 @@ const hydrateConversation = (conversation) => ({
   createdAt: new Date(conversation.created_at),
   updatedAt: new Date(conversation.updated_at),
   messages: (conversation.messages || []).map((message) => ({
+    id: message.id,
     role: message.role,
     content: message.content,
     model: message.model,
@@ -26,6 +27,7 @@ function App() {
   const [conversations, setConversations] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [models, setModels] = useState([]);
+  const [catalog, setCatalog] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [activeTab, setActiveTab] = useState('chat'); // chat, models, settings
   const [ollamaStatus, setOllamaStatus] = useState('checking');
@@ -45,6 +47,7 @@ function App() {
   useEffect(() => {
     fetchConversations();
     fetchModels();
+    fetchCatalog();
     fetchSettings();
     fetchDocuments();
     fetchMemoryGraph();
@@ -67,13 +70,23 @@ function App() {
       const data = await response.json();
       const fetched = data.models || [];
       setModels(fetched);
-      
+
       setSelectedModel((prev) => {
         if (prev && fetched.some((m) => m.name === prev)) return prev;
         return fetched.length > 0 ? fetched[0].name : '';
       });
     } catch (error) {
       console.error('Failed to fetch models:', error);
+    }
+  };
+
+  const fetchCatalog = async () => {
+    try {
+      const response = await fetch(`${API_URL}/models/catalog`);
+      const data = await response.json();
+      setCatalog(data.catalog || []);
+    } catch (error) {
+      console.error('Failed to fetch catalog:', error);
     }
   };
 
@@ -111,6 +124,21 @@ function App() {
     setSelectedMemoryIds((prev) =>
       prev.includes(nodeId) ? prev.filter((id) => id !== nodeId) : [...prev, nodeId]
     );
+  };
+
+  const refreshConversation = async (conversationId) => {
+    try {
+      const response = await fetch(`${API_URL}/conversations/${conversationId}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const conversation = hydrateConversation(await response.json());
+      setConversations((prevConversations) =>
+        prevConversations.map((current) =>
+          current.id === conversationId ? conversation : current
+        )
+      );
+    } catch (error) {
+      console.error('Failed to refresh conversation:', error);
+    }
   };
 
   const fetchConversations = async () => {
@@ -289,6 +317,7 @@ function App() {
               selectedMemoryIds={selectedMemoryIds}
               onToggleMemory={handleToggleMemory}
               onRefreshMemories={fetchMemoryGraph}
+              onRefreshConversation={refreshConversation}
             />
           )}
 
@@ -314,7 +343,12 @@ function App() {
           {activeTab === 'models' && (
             <ModelManagement
               models={models}
-              onRefresh={fetchModels}
+              catalog={catalog}
+              onRefresh={() => {
+                fetchModels();
+                fetchCatalog();
+              }}
+              onRefreshCatalog={fetchCatalog}
               selectedModel={selectedModel}
               onSelectModel={setSelectedModel}
             />

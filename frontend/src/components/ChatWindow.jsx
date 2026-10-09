@@ -54,7 +54,8 @@ export default function ChatWindow({
   memoryNodes = [],
   selectedMemoryIds = [],
   onToggleMemory,
-  onRefreshMemories
+  onRefreshMemories,
+  onRefreshConversation
 }) {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -196,6 +197,9 @@ export default function ChatWindow({
       if (sseBuffer.trim()) {
         handleStreamEvent(sseBuffer);
       }
+      if (onRefreshConversation) {
+        await onRefreshConversation(conversation.id);
+      }
     } catch (err) {
       console.error('Chat error:', err);
       setError('Failed to get response. Make sure Ollama is running and the selected model is installed.');
@@ -215,13 +219,18 @@ export default function ChatWindow({
   };
 
   const handleCaptureMessage = async (msg) => {
+    if (!msg.id) {
+      setError('This message is not saved yet. Please try again in a moment.');
+      return;
+    }
+
     try {
       const res = await fetch(`${apiUrl}/memories/capture/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conversation_id: conversation.id,
-          message_id: msg.id || 0
+          message_id: msg.id
         })
       });
       if (!res.ok) throw new Error('Failed to capture message');

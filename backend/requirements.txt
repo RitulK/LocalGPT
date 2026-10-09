@@ -10,3 +10,5 @@ langchain-core
 langchain-ollama
 langchain-openai
 langchain-chroma
+structlog
+psutil

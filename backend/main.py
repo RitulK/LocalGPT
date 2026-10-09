@@ -26,7 +26,6 @@ async def lifespan(app: FastAPI):
     yield
 
 
-@asynccontextmanager
 async def logging_middleware(request: Request, call_next):
     request_id = str(uuid.uuid4())
     start_time = time.perf_counter()

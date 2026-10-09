@@ -23,6 +23,11 @@ class MemoryGraphService:
         title: Optional[str] = None,
     ) -> Dict[str, Any]:
         with get_connection() as conn:
+            # Verify conversation exists first to prevent orphan nodes
+            conv = conv_repo.get(conn, conversation_id)
+            if not conv:
+                raise ValueError(f"Conversation {conversation_id} does not exist")
+
             messages = message_repo.list_by_conversation(conn, conversation_id)
             target = next((m for m in messages if m["id"] == message_id), None)
             if not target:
@@ -53,6 +58,11 @@ class MemoryGraphService:
         title: Optional[str] = None,
     ) -> Dict[str, Any]:
         with get_connection() as conn:
+            # Verify conversation exists first to prevent orphan nodes
+            conv = conv_repo.get(conn, conversation_id)
+            if not conv:
+                raise ValueError(f"Conversation {conversation_id} does not exist")
+
             messages = message_repo.list_by_conversation(conn, conversation_id)
             if not messages:
                 raise ValueError(f"No messages found for conversation {conversation_id}")
