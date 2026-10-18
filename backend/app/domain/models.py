@@ -22,6 +22,20 @@ class ReasoningEvent(BaseModel):
     content: str
 
 
+class ToolCallEvent(BaseModel):
+    type: Literal["tool_call"] = "tool_call"
+    tool_call_id: str
+    name: str
+    arguments: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ToolResultEvent(BaseModel):
+    type: Literal["tool_result"] = "tool_result"
+    tool_call_id: str
+    name: str
+    result: Dict[str, Any] = Field(default_factory=dict)
+
+
 class DoneEvent(BaseModel):
     type: Literal["done"] = "done"
 
@@ -31,4 +45,7 @@ class ErrorEvent(BaseModel):
     error: str
 
 
-StreamEvent = Union[MetadataEvent, ContentEvent, ReasoningEvent, DoneEvent, ErrorEvent]
+StreamEvent = Union[
+    MetadataEvent, ContentEvent, ReasoningEvent, ToolCallEvent,
+    ToolResultEvent, DoneEvent, ErrorEvent
+]

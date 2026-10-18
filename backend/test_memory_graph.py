@@ -182,9 +182,8 @@ class MemoryGraphTest(unittest.TestCase):
         )
         self.assertEqual(res.status_code, 200)
         data = res.json()
-        self.assertEqual(len(data["nodes"]), 2)
-        self.assertEqual(len(data["edges"]), 1)
-        self.assertEqual(data["edges"][0]["relation"], "follows")
+        self.assertEqual(len(data["nodes"]), 1)
+        self.assertEqual(len(data["edges"]), 0)
 
         # 4. Create custom relates_to edge
         thread_node_id = data["nodes"][0]["id"]

@@ -13,6 +13,8 @@ class ChatRequest(BaseModel):
     enable_thinking: bool = False
     reasoning_budget: int = 8192
     memory_node_ids: Optional[List[str]] = None
+    # Keep API callers backward compatible; the frontend sends its explicit toggle state.
+    tinyfish_enabled: bool = True
 
 
 class Settings(BaseModel):

@@ -60,6 +60,11 @@ export default function MessageBubble({ message, onSaveMessage, onSaveThread }) 
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
             <div className="markdown-content prose prose-invert max-w-none">
+              {message.toolStatus && (
+                <div className="mb-2 text-xs text-[#8ffcf0]">
+                  {message.toolStatus}
+                </div>
+              )}
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{

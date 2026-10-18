@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
+  Cloud,
   Cpu,
   Database,
   HardDrive,
@@ -16,8 +17,10 @@ import {
 export default function ModelManagement({ models, catalog, onRefresh, onRefreshCatalog, selectedModel, onSelectModel }) {
   const [refreshing, setRefreshing] = useState(false);
   const [installing, setInstalling] = useState({});
+  const [installProgress, setInstallProgress] = useState({});
   const [activeTab, setActiveTab] = useState('installed');
   const [query, setQuery] = useState('');
+  const installControllers = useRef({});
 
   const totalSize = useMemo(
     () => models.reduce((acc, model) => acc + (model.size || 0), 0),
@@ -41,21 +44,68 @@ export default function ModelManagement({ models, catalog, onRefresh, onRefreshC
   };
 
   const handleInstall = async (modelId) => {
+    const controller = new AbortController();
+    installControllers.current[modelId] = controller;
     setInstalling(prev => ({ ...prev, [modelId]: true }));
     try {
-      const response = await fetch(`http://localhost:8000/models/install/${modelId}`, {
+      const response = await fetch(`http://localhost:8000/models/install-stream/${encodeURIComponent(modelId)}`, {
         method: 'POST',
+        signal: controller.signal,
       });
-      if (!response.ok) throw new Error('Install failed');
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(detail || `Install failed (${response.status})`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let completed = false;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
+        for (const event of events) {
+          const line = event.split('\n').find((entry) => entry.startsWith('data: '));
+          if (!line) continue;
+          const update = JSON.parse(line.slice(6));
+          if (update.status === 'error') throw new Error(update.error);
+          if (update.completed && update.total) {
+            setInstallProgress(prev => ({
+              ...prev,
+              [modelId]: Math.round((update.completed / update.total) * 100)
+            }));
+          } else if (update.status === 'pulling manifest') {
+            setInstallProgress(prev => ({ ...prev, [modelId]: 1 }));
+          }
+          if (update.status === 'success' || update.status === 'completed') completed = true;
+        }
+      }
+      if (!completed) {
+        throw new Error('Ollama ended the download without reporting completion.');
+      }
 
       await onRefresh();
       await onRefreshCatalog();
     } catch (error) {
+      if (error.name === 'AbortError') return;
       console.error('Installation error:', error);
-      alert(`Failed to install model ${modelId}. Please ensure Ollama is running.`);
+      alert(`Failed to install model ${modelId}: ${error.message}`);
     } finally {
+      delete installControllers.current[modelId];
       setInstalling(prev => ({ ...prev, [modelId]: false }));
+      setInstallProgress(prev => {
+        const next = { ...prev };
+        delete next[modelId];
+        return next;
+      });
     }
+  };
+
+  const handleCancelInstall = (modelId) => {
+    installControllers.current[modelId]?.abort();
   };
 
   const formatBytes = (bytes) => {
@@ -168,6 +218,7 @@ export default function ModelManagement({ models, catalog, onRefresh, onRefreshC
               {filteredInstalled.map((model) => {
                 const isSelected = selectedModel === model.name;
                 const type = getModelType(model.name);
+                const isCloud = model.name.includes(':cloud');
 
                 return (
                   <article
@@ -185,7 +236,13 @@ export default function ModelManagement({ models, catalog, onRefresh, onRefreshC
                           <h3 className="text-lg font-semibold text-white truncate">{model.name}</h3>
                           <div className="mt-1 flex flex-wrap items-center gap-2">
                             <span className="rounded-full bg-white/[0.06] px-2 py-1 text-xs text-[#9fb1ad]">{type}</span>
-                            <span className="rounded-full bg-emerald-400/10 px-2 py-1 text-xs text-emerald-200">Installed</span>
+                            <span className={`rounded-full px-2 py-1 text-xs ${
+                              isCloud
+                                ? 'bg-sky-400/10 text-sky-200'
+                                : 'bg-emerald-400/10 text-emerald-200'
+                            }`}>
+                              {isCloud ? 'Ollama Cloud' : 'Installed'}
+                            </span>
                             {isSelected && (
                               <span className="rounded-full bg-[#20dcca]/12 px-2 py-1 text-xs text-[#8ffcf0]">Selected</span>
                             )}
@@ -229,6 +286,7 @@ export default function ModelManagement({ models, catalog, onRefresh, onRefreshC
                 const installedModel = models.find((m) => m.name === `ollama:${model.id}`);
                 const isInstalled = Boolean(installedModel);
                 const modelName = `ollama:${model.id}`;
+                const isCloud = Boolean(model.is_cloud || model.id.includes(':cloud'));
                 const isSelected = selectedModel === modelName;
 
                 return (
@@ -249,24 +307,62 @@ export default function ModelManagement({ models, catalog, onRefresh, onRefreshC
                             <span className="rounded-full bg-white/[0.06] px-2 py-1 text-xs text-[#9fb1ad]">{model.provider}</span>
                             {getFitBadge(model)}
                             {isInstalled && (
-                              <span className="rounded-full bg-emerald-400/10 px-2 py-1 text-xs text-emerald-200">Installed</span>
+                              <span className={`rounded-full px-2 py-1 text-xs ${
+                                isCloud
+                                  ? 'bg-sky-400/10 text-sky-200'
+                                  : 'bg-emerald-400/10 text-emerald-200'
+                              }`}>
+                                {isCloud ? 'Ollama Cloud' : 'Installed'}
+                              </span>
                             )}
                           </div>
                         </div>
                       </div>
                       <button
-                        onClick={() => isInstalled ? onSelectModel(modelName) : handleInstall(model.id)}
+                        onClick={() => isCloud || isInstalled
+                          ? onSelectModel(modelName)
+                          : handleInstall(model.id)}
                         disabled={installing[model.id]}
                         className={`rounded-xl px-3 py-2 text-xs font-semibold transition flex items-center gap-2 ${
                           isSelected
                             ? 'bg-[#20dcca] text-[#06211e]'
+                            : isCloud
+                            ? 'bg-sky-400/15 text-sky-200 hover:bg-sky-400/25'
                             : isInstalled
                             ? 'border border-white/[0.08] bg-white/[0.035] text-[#9fb1ad] hover:border-[#28ead8]/28 hover:text-[#8ffcf0]'
                             : 'bg-[#20dcca]/20 text-[#8ffcf0] hover:bg-[#20dcca]/30'
                         }`}
                       >
                         {installing[model.id] ? (
-                          <RefreshCw className="h-3 w-3 animate-spin" />
+                          <>
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleCancelInstall(model.id);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  handleCancelInstall(model.id);
+                                }
+                              }}
+                              className="rounded-lg border border-red-300/20 bg-red-400/10 px-2 py-1 text-red-200 hover:bg-red-400/20"
+                            >
+                              Cancel
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                              {installProgress[model.id] ? `${installProgress[model.id]}%` : 'Preparing'}
+                            </span>
+                          </>
+                        ) : isCloud ? (
+                          <>
+                            <Cloud className="h-3 w-3" />
+                            Use cloud model
+                          </>
                         ) : isInstalled ? (
                           isSelected ? 'In use' : 'Use model'
                         ) : (
@@ -283,8 +379,8 @@ export default function ModelManagement({ models, catalog, onRefresh, onRefreshC
                     </p>
 
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Metric label="Estimated memory" value={`${model.required_memory_gb || model.min_vram_gb || 0} GB`} />
-                      <Metric label="Compatibility" value={`${model.fit_score ?? 0}% · ${model.fit_label || 'Unknown'}`} />
+                      <Metric label="Estimated memory" value={model.required_memory_gb || model.min_vram_gb ? `${model.required_memory_gb || model.min_vram_gb} GB` : 'Unknown'} />
+                      <Metric label="Compatibility" value={typeof model.fit_score === 'number' ? `${model.fit_score}% · ${model.fit_label}` : 'Unknown'} />
                     </div>
                   </article>
                 );

@@ -1,7 +1,13 @@
-import json
 from typing import AsyncIterator, Optional
 
-from app.domain.models import ContentEvent, DoneEvent, MetadataEvent, ReasoningEvent
+from app.domain.models import (
+    ContentEvent,
+    DoneEvent,
+    MetadataEvent,
+    ReasoningEvent,
+    ToolCallEvent,
+    ToolResultEvent,
+)
 from app.domain.rag import format_rag_context, public_sources
 from app.domain.schemas import ChatRequest, Settings
 from app.infrastructure.db.connection import get_connection
@@ -16,13 +22,28 @@ from app.services.runtime import (
     FORMAT_SYSTEM_PROMPT,
     MAX_CONTEXT_MESSAGES,
     RAG_SYSTEM_PROMPT,
+    WEB_TOOLS_SYSTEM_PROMPT,
     rag_service,
 )
+from app.core.config import settings
+from app.infrastructure.tinyfish.service import TinyFishService
+import re
+import json
 
 conversation_repo = ConversationRepository()
 message_repo = MessageRepository()
 settings_repo = SettingsRepository()
 llm_gateway = LLMGateway()
+tinyfish_service = TinyFishService()
+
+
+def _requires_live_search(prompt: str) -> bool:
+    return bool(re.search(
+        r"\b(today|latest|current|recent|news|update|price|war|election|weather|"
+        r"stock|market|happening|right now)\b",
+        prompt,
+        re.IGNORECASE,
+    ))
 
 
 class ChatService:
@@ -53,6 +74,11 @@ class ChatService:
                 memory_context = memory_graph_service.compile_context(conn, request.memory_node_ids, depth=1)
 
             messages = [{"role": "system", "content": FORMAT_SYSTEM_PROMPT}]
+            if settings.TINYFISH_API_KEY and request.tinyfish_enabled:
+                messages.append({
+                    "role": "system",
+                    "content": WEB_TOOLS_SYSTEM_PROMPT,
+                })
             if memory_context:
                 messages.append({
                     "role": "system",
@@ -83,16 +109,90 @@ class ChatService:
         )
         yield f"data: {metadata_event.model_dump_json()}\n\n"
 
-        async for event in llm_gateway.stream_chat(selected_model, messages):
-            if isinstance(event, ReasoningEvent):
-                yield f"data: {event.model_dump_json()}\n\n"
-            elif isinstance(event, ContentEvent):
-                accumulated_content += event.content
-                yield f"data: {event.model_dump_json()}\n\n"
-            elif isinstance(event, str):
-                accumulated_content += event
-                content_event = ContentEvent(content=event)
-                yield f"data: {content_event.model_dump_json()}\n\n"
+        max_iterations = 5
+        if settings.TINYFISH_API_KEY and request.tinyfish_enabled and _requires_live_search(request.prompt):
+            forced_call = ToolCallEvent(
+                tool_call_id="forced_search_0",
+                name="search",
+                arguments={"query": request.prompt},
+            )
+            yield f"data: {forced_call.model_dump_json()}\n\n"
+            forced_result = await tinyfish_service.execute(
+                forced_call.name, forced_call.arguments
+            )
+            yield f"data: {ToolResultEvent(
+                tool_call_id=forced_call.tool_call_id,
+                name=forced_call.name,
+                result=forced_result,
+            ).model_dump_json()}\n\n"
+            messages.append({
+                "role": "system",
+                "content": (
+                    "LIVE WEB SEARCH RESULT (provided by TinyFish):\n"
+                    f"{json.dumps(forced_result, ensure_ascii=False)}\n\n"
+                    "Use this live result to answer the user's question. Do not "
+                    "claim that real-time search is unavailable. Distinguish "
+                    "reported facts from uncertainty and include source names "
+                    "when available."
+                ),
+            })
+
+        for _ in range(max_iterations):
+            tool_calls = []
+            iteration_content = ""
+            async for event in llm_gateway.stream_chat(
+                selected_model,
+                messages,
+                enable_tools=request.tinyfish_enabled,
+            ):
+                if isinstance(event, ToolCallEvent):
+                    tool_calls.append(event)
+                    yield f"data: {event.model_dump_json()}\n\n"
+                elif isinstance(event, ReasoningEvent):
+                    yield f"data: {event.model_dump_json()}\n\n"
+                elif isinstance(event, ContentEvent):
+                    iteration_content += event.content
+                    accumulated_content += event.content
+                    yield f"data: {event.model_dump_json()}\n\n"
+                elif isinstance(event, str):
+                    iteration_content += event
+                    accumulated_content += event
+                    content_event = ContentEvent(content=event)
+                    yield f"data: {content_event.model_dump_json()}\n\n"
+
+            if not tool_calls:
+                break
+
+            messages.append({
+                "role": "assistant",
+                "content": iteration_content,
+                "tool_calls": [
+                    {
+                        "id": call.tool_call_id,
+                        "name": call.name,
+                        "args": call.arguments,
+                        "type": "tool_call",
+                    }
+                    for call in tool_calls
+                ],
+            })
+            for call in tool_calls:
+                result = await tinyfish_service.execute(call.name, call.arguments)
+                tool_result = ToolResultEvent(
+                    tool_call_id=call.tool_call_id,
+                    name=call.name,
+                    result=result,
+                )
+                yield f"data: {tool_result.model_dump_json()}\n\n"
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": call.tool_call_id,
+                    "content": str(result),
+                })
+        else:
+            limit_message = "I could not complete the web research within the tool limit."
+            accumulated_content += f"\n\n{limit_message}"
+            yield f"data: {ContentEvent(content=limit_message).model_dump_json()}\n\n"
 
         if accumulated_content:
             with get_connection() as conn:

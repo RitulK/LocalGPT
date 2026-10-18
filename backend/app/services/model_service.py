@@ -1,12 +1,13 @@
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, AsyncIterator, Dict
 
 import httpx
 
 from app.services.runtime import llm_gateway
 from app.services.hardware_service import hardware_service
 from app.core.logging import logger
+from app.core.config import settings
 
 CATALOG_PATH = (
     Path(__file__).resolve().parents[2]
@@ -16,10 +17,16 @@ CATALOG_PATH = (
     / "catalog.json"
 )
 
-def calculate_fit_score(required_gb: float, available_ram: float) -> Dict[str, Any]:
+def calculate_fit_score(
+    required_gb: float,
+    available_ram: float,
+    is_cloud: bool = False,
+) -> Dict[str, Any]:
     """Estimate local compatibility from the model size and available system memory."""
-    if required_gb <= 0:
+    if is_cloud:
         return {"score": 100, "label": "Cloud", "status": "FIT"}
+    if required_gb <= 0:
+        return {"score": None, "label": "Unknown", "status": "UNKNOWN"}
 
     ratio = min(available_ram / required_gb, 1.0)
     score = round(ratio * 100)
@@ -34,7 +41,10 @@ def calculate_fit_score(required_gb: float, available_ram: float) -> Dict[str, A
 async def list_models():
     """Returns models currently installed in Ollama."""
     try:
-        return {"models": await llm_gateway.get_models("ollama")}
+        models = await llm_gateway.get_models("ollama")
+        if not settings.OLLAMA_CLOUD_MODELS_ENABLED:
+            models = [model for model in models if ":cloud" not in model["name"]]
+        return {"models": models}
     except Exception as exc:
         logger.error("list_models_failed", error=str(exc))
         return {"models": []}
@@ -91,21 +101,37 @@ async def get_catalog():
 
         for model in catalog_by_id.values():
             required_memory = model.get("required_memory_gb") or model.get("min_vram_gb", 0)
-            if ":cloud" in model["id"] or model.get("size") == 0:
+            is_cloud = ":cloud" in model["id"] or str(
+                model.get("provider", "")
+            ).startswith("cloud")
+            if is_cloud:
                 required_memory = 0
-            fit = calculate_fit_score(required_memory, available_ram)
+            model["is_cloud"] = is_cloud
+            fit = calculate_fit_score(required_memory, available_ram, is_cloud)
             model["fit_score"] = fit["score"]
             model["fit_label"] = fit["label"]
             model["fit_status"] = fit["status"]
             model["available_ram_gb"] = available_ram
 
-        return {"catalog": list(catalog_by_id.values()), "hardware": resources}
+        catalog = list(catalog_by_id.values())
+        if not settings.OLLAMA_CLOUD_MODELS_ENABLED:
+            catalog = [
+                model for model in catalog
+                if ":cloud" not in model["id"]
+                and not str(model.get("provider", "")).startswith("cloud")
+            ]
+        return {"catalog": catalog, "hardware": resources}
     except Exception as exc:
         logger.error("get_catalog_failed", error=str(exc))
         return {"catalog": [], "error": str(exc)}
 
 async def install_model(model_id: str):
     """Triggers installation of a model from the catalog."""
+    if ":cloud" in model_id or model_id.endswith(":cloud"):
+        return {
+            "status": "error",
+            "error": "Cloud Ollama models cannot be downloaded locally.",
+        }
     logger.info("installing_model", model_id=model_id)
     result = await llm_gateway.pull_model(model_id)
     if "error" in result:
@@ -113,3 +139,14 @@ async def install_model(model_id: str):
     else:
         logger.info("install_model_success", model_id=model_id)
     return result
+
+
+async def stream_install_model(model_id: str) -> AsyncIterator[Dict[str, Any]]:
+    if ":cloud" in model_id or model_id.endswith(":cloud"):
+        yield {
+            "status": "error",
+            "error": "Cloud Ollama models cannot be downloaded locally.",
+        }
+        return
+    async for update in llm_gateway.pull_model_stream(model_id):
+        yield update

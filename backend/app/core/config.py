@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     VLLM_BASE_URL: str = "http://localhost:8000/v1"
     NVIDIA_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
     NVIDIA_API_KEY: str = ""
+    TINYFISH_API_KEY: str = ""
+    TINYFISH_BASE_URL: str = "https://agent.tinyfish.ai/v1/automation"
+    OLLAMA_CLOUD_MODELS_ENABLED: bool = True
 
     # RAG Settings
     RAG_EMBEDDING_MODEL: str = "nomic-embed-text"

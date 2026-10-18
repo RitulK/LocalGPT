@@ -29,6 +29,7 @@ function App() {
   const [models, setModels] = useState([]);
   const [catalog, setCatalog] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
+  const [tinyfishEnabled, setTinyfishEnabled] = useState(false);
   const [activeTab, setActiveTab] = useState('chat'); // chat, models, settings
   const [ollamaStatus, setOllamaStatus] = useState('checking');
   const [settings, setSettings] = useState({
@@ -323,6 +324,8 @@ function App() {
               onSelectedDocumentIdsChange={setSelectedDocumentIds}
               useRag={useRag}
               onToggleRag={setUseRag}
+              tinyfishEnabled={tinyfishEnabled}
+              onToggleTinyfish={setTinyfishEnabled}
               memoryNodes={memoryGraph.nodes || []}
               selectedMemoryIds={selectedMemoryIds}
               onToggleMemory={handleToggleMemory}

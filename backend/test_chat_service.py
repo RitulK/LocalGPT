@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from main import app
 from app.services.chat_service import ChatService
 from app.domain.schemas import ChatRequest
+from app.domain.models import ContentEvent, ToolCallEvent
 
 
 class ChatServiceTest(unittest.IsolatedAsyncioTestCase):
@@ -62,6 +63,97 @@ class ChatServiceTest(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(len(chunks), 0)
         self.assertTrue(any("metadata" in chunk for chunk in chunks))
         self.assertTrue(any("done" in chunk for chunk in chunks))
+
+    @patch("app.services.chat_service.tinyfish_service")
+    @patch("app.services.chat_service.message_repo")
+    @patch("app.services.chat_service.conversation_repo")
+    @patch("app.services.chat_service.settings_repo")
+    @patch("app.services.chat_service.llm_gateway")
+    async def test_stream_chat_executes_tool_then_continues(
+        self,
+        mock_llm_gateway,
+        mock_settings_repo,
+        mock_conv_repo,
+        mock_msg_repo,
+        mock_tinyfish,
+    ):
+        mock_settings_repo.get.return_value = {}
+        mock_conv_repo.get.return_value = {"id": 1, "title": "Chat"}
+        mock_msg_repo.list_by_conversation.return_value = []
+        mock_tinyfish.execute = AsyncMock(
+            return_value={"status": "COMPLETED", "result": {"answer": "result"}}
+        )
+
+        calls = 0
+
+        async def tool_then_answer(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                yield ToolCallEvent(
+                    tool_call_id="call-1",
+                    name="search",
+                    arguments={"query": "latest news"},
+                )
+            else:
+                yield ContentEvent(content="Here is the result.")
+
+        mock_llm_gateway.stream_chat.side_effect = tool_then_answer
+
+        chunks = [
+            chunk
+            async for chunk in self.service.stream_chat(
+                ChatRequest(prompt="Search the web", model="ollama:qwen:4b"),
+                conversation_id=1,
+            )
+        ]
+
+        self.assertEqual(calls, 2)
+        mock_tinyfish.execute.assert_awaited_once_with(
+            "search", {"query": "latest news"}
+        )
+        self.assertTrue(any("tool_call" in chunk for chunk in chunks))
+        self.assertTrue(any("tool_result" in chunk for chunk in chunks))
+        self.assertTrue(any("Here is the result." in chunk for chunk in chunks))
+
+    @patch("app.services.chat_service.tinyfish_service")
+    @patch("app.services.chat_service.message_repo")
+    @patch("app.services.chat_service.conversation_repo")
+    @patch("app.services.chat_service.settings_repo")
+    @patch("app.services.chat_service.llm_gateway")
+    @patch("app.services.chat_service.settings.TINYFISH_API_KEY", "configured")
+    async def test_current_query_forces_search(
+        self,
+        mock_llm_gateway,
+        mock_settings_repo,
+        mock_conv_repo,
+        mock_msg_repo,
+        mock_tinyfish,
+    ):
+        mock_settings_repo.get.return_value = {}
+        mock_conv_repo.get.return_value = {"id": 1, "title": "Chat"}
+        mock_msg_repo.list_by_conversation.return_value = []
+        mock_tinyfish.execute = AsyncMock(
+            return_value={"status": "COMPLETED", "result": {"answer": "news"}}
+        )
+
+        async def answer(*args, **kwargs):
+            yield ContentEvent(content="Based on the live result.")
+
+        mock_llm_gateway.stream_chat.side_effect = answer
+        chunks = [
+            chunk async for chunk in self.service.stream_chat(
+                ChatRequest(prompt="What is the latest update?", model="ollama:qwen:4b"),
+                conversation_id=1,
+            )
+        ]
+        mock_tinyfish.execute.assert_awaited_once()
+        self.assertTrue(any("forced_search_0" in chunk for chunk in chunks))
+        sent_messages = mock_llm_gateway.stream_chat.call_args[0][1]
+        self.assertTrue(any(
+            m["role"] == "system" and "LIVE WEB SEARCH RESULT" in m["content"]
+            for m in sent_messages
+        ))
 
     @patch("app.services.chat_service.memory_graph_service")
     @patch("app.services.chat_service.message_repo")

@@ -51,6 +51,8 @@ export default function ChatWindow({
   selectedDocumentIds,
   useRag,
   onToggleRag,
+  tinyfishEnabled,
+  onToggleTinyfish,
   memoryNodes = [],
   selectedMemoryIds = [],
   onToggleMemory,
@@ -137,7 +139,8 @@ export default function ChatWindow({
           conversation_history: history,
           use_rag: useRag && selectedDocumentIds.length > 0,
           document_ids: selectedDocumentIds,
-          memory_node_ids: selectedMemoryIds.length > 0 ? selectedMemoryIds : undefined
+          memory_node_ids: selectedMemoryIds.length > 0 ? selectedMemoryIds : undefined,
+          tinyfish_enabled: tinyfishEnabled
         })
       });
 
@@ -171,12 +174,27 @@ export default function ChatWindow({
             accumulatedContent += data.content;
             onUpdateLastMessage(conversation.id, {
               content: accumulatedContent,
+              model: actualModel,
+              toolStatus: null
+            });
+          } else if (data.type === 'tool_call') {
+            onUpdateLastMessage(conversation.id, {
+              toolStatus: `Using web tool: ${data.name}`,
+              model: actualModel
+            });
+          } else if (data.type === 'tool_result') {
+            const failed = data.result?.status === 'error';
+            onUpdateLastMessage(conversation.id, {
+              toolStatus: failed
+                ? `Web tool failed: ${data.result.error || 'Unknown error'}`
+                : `Web tool completed: ${data.name}`,
               model: actualModel
             });
           } else if (data.type === 'done') {
             onUpdateLastMessage(conversation.id, {
               isStreaming: false,
-              model: actualModel
+              model: actualModel,
+              toolStatus: null
             });
           }
         } catch (e) {
@@ -505,6 +523,8 @@ function Composer({
   selectedDocumentIds,
   useRag,
   onToggleRag,
+  tinyfishEnabled,
+  onToggleTinyfish,
   memoryNodes = [],
   selectedMemoryIds = [],
   onToggleMemory,
@@ -548,6 +568,24 @@ function Composer({
           })}
         </div>
       )}
+
+      <button
+        type="button"
+        onClick={() => onToggleTinyfish(!tinyfishEnabled)}
+        disabled={isStreaming}
+        className={`mb-2 inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+          tinyfishEnabled
+            ? 'border-sky-300/30 bg-sky-400/15 text-sky-200'
+            : 'border-white/[0.08] bg-white/[0.035] text-[#8da19c]'
+        }`}
+        title="Allow TinyFish live web tools for the next messages"
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        TinyFish
+        <span className="text-[10px] uppercase tracking-wide">
+          {tinyfishEnabled ? 'On' : 'Off'}
+        </span>
+      </button>
 
       <textarea
         ref={textareaRef}

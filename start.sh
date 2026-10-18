@@ -10,6 +10,19 @@ NC='\033[0m'
 echo -e "${BLUE}🚀 Starting LocalGPT...${NC}"
 echo ""
 
+tinyfish_configured=false
+if [ -n "${TINYFISH_API_KEY:-}" ]; then
+    tinyfish_configured=true
+elif [ -f "backend/.env" ] && grep -q '^TINYFISH_API_KEY=[^[:space:]]' "backend/.env"; then
+    tinyfish_configured=true
+fi
+
+if [ "$tinyfish_configured" = false ]; then
+    echo -e "${BLUE}Note: TinyFish is not configured for LocalGPT.${NC}"
+    echo "Add TINYFISH_API_KEY to backend/.env to enable live web tools."
+    echo ""
+fi
+
 # Check if in correct directory
 if [ ! -d "backend" ] || [ ! -d "frontend" ]; then
     echo "Error: Please run this script from the LocalGPT root directory"

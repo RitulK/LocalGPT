@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import AsyncMock, patch, MagicMock
 
-from app.domain.models import ContentEvent, ReasoningEvent
+from app.domain.models import ContentEvent, ReasoningEvent, ToolCallEvent
 from app.infrastructure.llm.gateway import LLMGateway, parse_model_spec
 from langchain_core.messages import AIMessageChunk
 
@@ -64,6 +64,43 @@ class LLMGatewayTest(unittest.IsolatedAsyncioTestCase):
         result = await self.gateway.embed("ollama:nomic-embed-text", ["test prompt"])
         self.assertEqual(result, [[0.1, 0.2]])
         mock_embeddings_inst.aembed_documents.assert_called_once_with(["test prompt"])
+
+    @patch("app.infrastructure.llm.gateway.settings.TINYFISH_API_KEY", "configured")
+    @patch.object(LLMGateway, "_get_client")
+    async def test_stream_chat_parses_textual_tool_call(self, mock_get_client):
+        mock_client = MagicMock()
+
+        async def fake_astream(messages):
+            yield AIMessageChunk(
+                content='{"name": "search", "arguments": {"query": "today\'s date and day"}}'
+            )
+
+        mock_client.astream.side_effect = fake_astream
+        mock_get_client.return_value = mock_client
+
+        events = [
+            event
+            async for event in self.gateway.stream_chat(
+                "ollama:minimax-m3:cloud",
+                [{"role": "user", "content": "What is today?"}],
+            )
+        ]
+
+        self.assertEqual(len(events), 1)
+        self.assertIsInstance(events[0], ToolCallEvent)
+        self.assertEqual(events[0].name, "search")
+        self.assertEqual(
+            events[0].arguments, {"query": "today's date and day"}
+        )
+
+    def test_parse_text_tool_call_with_prose(self):
+        parsed = self.gateway._parse_text_tool_call(
+            'I will search now. {"name":"search","arguments":{"query":"latest news"}}'
+        )
+        self.assertEqual(
+            parsed,
+            {"name": "search", "arguments": {"query": "latest news"}},
+        )
 
 
 if __name__ == "__main__":
