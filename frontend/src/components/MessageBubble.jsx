@@ -21,6 +21,9 @@ export default function MessageBubble({ message, onSaveMessage, onSaveThread }) 
   };
 
   const isUser = message.role === 'user';
+  const timestamp = message.timestamp instanceof Date && !Number.isNaN(message.timestamp.getTime())
+    ? message.timestamp
+    : null;
 
   return (
     <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} group animate-in fade-in slide-in-from-bottom-4 duration-500`}>
@@ -153,7 +156,7 @@ export default function MessageBubble({ message, onSaveMessage, onSaveThread }) 
 
         {/* Timestamp */}
         <div className="text-[10px] text-[#536560] mt-1">
-          {message.timestamp?.toLocaleTimeString()}
+          {timestamp ? timestamp.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}
         </div>
       </div>
 

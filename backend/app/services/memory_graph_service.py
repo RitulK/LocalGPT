@@ -1,4 +1,5 @@
 import uuid
+from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 from app.infrastructure.db.connection import get_connection
@@ -74,45 +75,38 @@ class MemoryGraphService:
                     break
 
             base_title = title.strip() if title and title.strip() else f"Thread #{conversation_id} Snapshot"
-            created_nodes = []
-            created_edges = []
-            prev_node_id = None
 
-            for idx, msg in enumerate(target_msgs):
-                node_id = f"mem_thr_{conversation_id}_msg_{msg['id']}_{uuid.uuid4().hex[:4]}"
-                turn_title = f"{base_title} - Turn {idx + 1} ({msg['role']})"
-                node = memory_graph_repo.create_node(
-                    conn=conn,
-                    node_id=node_id,
-                    node_type="thread_snapshot",
-                    title=turn_title,
-                    content=msg["content"],
-                    source_conversation_id=conversation_id,
-                    source_message_id=msg["id"],
-                    metadata={
-                        "turn": idx + 1,
-                        "role": msg["role"],
-                        "model": msg.get("model"),
-                        "thread_title": base_title,
-                    },
-                )
-                created_nodes.append(node)
-
-                if prev_node_id is not None:
-                    edge = memory_graph_repo.create_edge(
-                        conn=conn,
-                        source_id=prev_node_id,
-                        target_id=node_id,
-                        relation="follows",
-                        metadata={"turn_transition": f"{idx} -> {idx + 1}"},
-                    )
-                    created_edges.append(edge)
-                prev_node_id = node_id
+            # A saved thread is one reusable memory, not one graph node per turn.
+            # Remove older snapshots for this conversation so repeated saves do
+            # not leave misleading duplicate chains in the graph.
+            memory_graph_repo.delete_nodes(
+                conn,
+                node_type="thread_snapshot",
+                conversation_id=conversation_id,
+            )
+            node_id = f"mem_thr_{conversation_id}_{uuid.uuid4().hex[:8]}"
+            transcript = "\n\n".join(
+                f"{msg['role'].capitalize()}:\n{msg['content']}" for msg in target_msgs
+            )
+            node = memory_graph_repo.create_node(
+                conn=conn,
+                node_id=node_id,
+                node_type="thread_snapshot",
+                title=base_title,
+                content=transcript,
+                source_conversation_id=conversation_id,
+                source_message_id=target_msgs[-1]["id"],
+                metadata={
+                    "turn_count": len(target_msgs),
+                    "message_ids": [msg["id"] for msg in target_msgs],
+                    "thread_title": base_title,
+                },
+            )
 
             return {
                 "thread_title": base_title,
-                "nodes": created_nodes,
-                "edges": created_edges,
+                "nodes": [node],
+                "edges": [],
             }
 
     def create_edge(
@@ -143,7 +137,53 @@ class MemoryGraphService:
         conversation_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         with get_connection() as conn:
+            self._normalize_legacy_thread_snapshots(conn, conversation_id)
             return memory_graph_repo.get_graph(conn, node_type, conversation_id)
+
+    def _normalize_legacy_thread_snapshots(
+        self,
+        conn,
+        conversation_id: Optional[int] = None,
+    ) -> None:
+        """Collapse snapshots created by the old one-node-per-turn implementation."""
+        nodes = memory_graph_repo.list_nodes(conn, "thread_snapshot", conversation_id)
+        grouped = defaultdict(list)
+        for node in nodes:
+            if node.get("source_conversation_id") is not None:
+                grouped[node["source_conversation_id"]].append(node)
+
+        for source_id, snapshots in grouped.items():
+            if len(snapshots) < 2:
+                continue
+            snapshots.sort(key=lambda node: node.get("metadata", {}).get("turn", 0))
+            title = f"Thread #{source_id} Snapshot"
+            transcript = "\n\n".join(
+                f"{node.get('metadata', {}).get('role', 'message').capitalize()}:\n{node['content']}"
+                for node in snapshots
+            )
+            memory_graph_repo.delete_nodes(
+                conn,
+                node_type="thread_snapshot",
+                conversation_id=source_id,
+            )
+            memory_graph_repo.create_node(
+                conn,
+                node_id=f"mem_thr_{source_id}_{uuid.uuid4().hex[:8]}",
+                node_type="thread_snapshot",
+                title=title,
+                content=transcript,
+                source_conversation_id=source_id,
+                source_message_id=snapshots[-1].get("source_message_id"),
+                metadata={
+                    "turn_count": len(snapshots),
+                    "message_ids": [
+                        node.get("source_message_id")
+                        for node in snapshots
+                        if node.get("source_message_id") is not None
+                    ],
+                    "thread_title": title,
+                },
+            )
 
     def compile_context(
         self,

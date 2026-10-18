@@ -78,6 +78,12 @@ async def delete_edge(edge_id: int):
     return {"message": "Edge deleted"}
 
 
+@router.delete("/memories/all")
+async def delete_all_memories():
+    deleted = memory_service.delete_all_memories()
+    return {"message": "All memories deleted", "deleted_count": deleted}
+
+
 @router.delete("/memories/{memory_id}")
 async def delete_memory(memory_id: str):
     # Try deleting graph memory node first

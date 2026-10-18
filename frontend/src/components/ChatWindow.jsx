@@ -253,7 +253,7 @@ export default function ChatWindow({
       });
       if (!res.ok) throw new Error('Failed to capture thread');
       const data = await res.json();
-      showToast(`Saved thread (${data.nodes?.length || 0} turns) to Memory Graph!`);
+      showToast(`Saved one thread (${data.nodes?.[0]?.metadata?.turn_count || 0} turns) to Memory Graph!`);
       if (onRefreshMemories) onRefreshMemories();
     } catch (err) {
       setError('Could not save thread to memory');

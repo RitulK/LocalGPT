@@ -130,7 +130,12 @@ function App() {
     try {
       const response = await fetch(`${API_URL}/conversations/${conversationId}`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const conversation = hydrateConversation(await response.json());
+      const data = await response.json();
+      const conversationData = data.conversation || data;
+      if (!conversationData?.id) {
+        throw new Error('Conversation response did not include an id');
+      }
+      const conversation = hydrateConversation(conversationData);
       setConversations((prevConversations) =>
         prevConversations.map((current) =>
           current.id === conversationId ? conversation : current
@@ -143,7 +148,12 @@ function App() {
 
   const fetchConversations = async () => {
     try {
-      const response = await fetch(`${API_URL}/conversations`);
+      const response = await fetch(`${API_URL}/conversations`, {
+        signal: AbortSignal.timeout(10000)
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
       const savedConversations = (data.conversations || []).map(hydrateConversation);
 

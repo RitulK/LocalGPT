@@ -93,7 +93,7 @@ class MemoryGraphTest(unittest.TestCase):
         self.assertEqual(node["content"], "Use async/await for I/O")
         self.assertEqual(node["source_conversation_id"], conv["id"])
 
-    def test_capture_thread_creates_follows_edges(self):
+    def test_capture_thread_creates_one_snapshot_node(self):
         conv = self.conv_repo.create(self.conn, "Thread Chat")
         m1 = self.msg_repo.add(self.conn, conv["id"], "user", "What is JWT?")
         m2 = self.msg_repo.add(self.conn, conv["id"], "assistant", "JWT is JSON Web Token")
@@ -107,18 +107,18 @@ class MemoryGraphTest(unittest.TestCase):
         nodes = result["nodes"]
         edges = result["edges"]
 
-        self.assertEqual(len(nodes), 4)
-        self.assertEqual(len(edges), 3)  # 3 follows edges between 4 turns
-        for edge in edges:
-            self.assertEqual(edge["relation"], "follows")
+        self.assertEqual(len(nodes), 1)
+        self.assertEqual(len(edges), 0)
+        self.assertEqual(nodes[0]["metadata"]["turn_count"], 4)
+        self.assertIn("What is JWT?", nodes[0]["content"])
+        self.assertIn("Use RS256 with private key", nodes[0]["content"])
 
-        # Verify edge sequence
-        self.assertEqual(edges[0]["source_id"], nodes[0]["id"])
-        self.assertEqual(edges[0]["target_id"], nodes[1]["id"])
-        self.assertEqual(edges[1]["source_id"], nodes[1]["id"])
-        self.assertEqual(edges[1]["target_id"], nodes[2]["id"])
-        self.assertEqual(edges[2]["source_id"], nodes[2]["id"])
-        self.assertEqual(edges[2]["target_id"], nodes[3]["id"])
+        with patch("app.services.memory_graph_service.get_connection") as mock_conn:
+            mock_conn.return_value.__enter__.return_value = self.conn
+            second_result = self.service.capture_thread(conv["id"], up_to_message_id=m2["id"])
+        self.assertEqual(len(second_result["nodes"]), 1)
+        graph = self.graph_repo.get_graph(self.conn)
+        self.assertEqual(len(graph["nodes"]), 1)
 
     def test_custom_relates_to_edge(self):
         n1 = self.graph_repo.create_node(self.conn, "n1", "concept", "Auth", "JWT Auth")

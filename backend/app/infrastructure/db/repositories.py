@@ -194,6 +194,10 @@ class MemoryRepository:
         )
         return cursor.rowcount > 0
 
+    def delete_all(self, conn: sqlite3.Connection) -> int:
+        cursor = conn.execute("DELETE FROM memories")
+        return cursor.rowcount
+
 
 class DocumentRepository:
     def create(
@@ -322,6 +326,35 @@ class DocumentRepository:
 
 
 class MemoryGraphRepository:
+    def delete_nodes(
+        self,
+        conn: sqlite3.Connection,
+        node_type: Optional[str] = None,
+        conversation_id: Optional[int] = None,
+    ) -> int:
+        """Delete matching graph nodes and their links."""
+        query = "SELECT id FROM memory_nodes WHERE 1=1"
+        params: List[Any] = []
+        if node_type is not None:
+            query += " AND node_type = ?"
+            params.append(node_type)
+        if conversation_id is not None:
+            query += " AND source_conversation_id = ?"
+            params.append(conversation_id)
+        node_ids = [row["id"] for row in conn.execute(query, params).fetchall()]
+        if not node_ids:
+            return 0
+        placeholders = ",".join("?" for _ in node_ids)
+        conn.execute(
+            f"DELETE FROM memory_edges WHERE source_id IN ({placeholders}) OR target_id IN ({placeholders})",
+            node_ids + node_ids,
+        )
+        cursor = conn.execute(
+            f"DELETE FROM memory_nodes WHERE id IN ({placeholders})",
+            node_ids,
+        )
+        return cursor.rowcount
+
     def create_node(
         self,
         conn: sqlite3.Connection,
@@ -400,6 +433,11 @@ class MemoryGraphRepository:
         conn.execute("DELETE FROM memory_edges WHERE source_id = ? OR target_id = ?", (node_id, node_id))
         cursor = conn.execute("DELETE FROM memory_nodes WHERE id = ?", (node_id,))
         return cursor.rowcount > 0
+
+    def delete_all(self, conn: sqlite3.Connection) -> int:
+        conn.execute("DELETE FROM memory_edges")
+        cursor = conn.execute("DELETE FROM memory_nodes")
+        return cursor.rowcount
 
     def create_edge(
         self,

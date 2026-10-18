@@ -25,10 +25,6 @@ export default function ModelManagement({ models, catalog, onRefresh, onRefreshC
   );
 
   const filteredInstalled = models
-    .filter((model) => {
-      const lower = model.name.toLowerCase();
-      return !lower.includes('embed');
-    })
     .filter((model) =>
       model.name.toLowerCase().includes(query.toLowerCase())
     );
@@ -83,13 +79,18 @@ export default function ModelManagement({ models, catalog, onRefresh, onRefreshC
     return 'Chat';
   };
 
-  const getFitBadge = (score) => {
-    switch (score) {
-      case 'FIT': return <span className="rounded-full bg-emerald-400/10 px-2 py-1 text-xs text-emerald-200">Fits Well</span>;
-      case 'TIGHT': return <span className="rounded-full bg-amber-400/10 px-2 py-1 text-xs text-amber-200">Tight Fit</span>;
-      case 'UNSUPPORTED': return <span className="rounded-full bg-red-400/10 px-2 py-1 text-xs text-red-200">May be slow</span>;
-      default: return null;
-    }
+  const getFitBadge = (model) => {
+    const label = model.fit_label || model.fit_score;
+    const tone = model.fit_status === 'FIT'
+      ? 'bg-emerald-400/10 text-emerald-200'
+      : model.fit_status === 'TIGHT'
+        ? 'bg-amber-400/10 text-amber-200'
+        : 'bg-red-400/10 text-red-200';
+    return (
+      <span className={`rounded-full px-2 py-1 text-xs ${tone}`}>
+        {label} {typeof model.fit_score === 'number' ? `· ${model.fit_score}%` : ''}
+      </span>
+    );
   };
 
   return (
@@ -225,8 +226,10 @@ export default function ModelManagement({ models, catalog, onRefresh, onRefreshC
           ) : (
             <div className="grid gap-4 xl:grid-cols-2">
               {filteredCatalog.map((model) => {
-                const isInstalled = models.some(m => m.name.includes(model.id));
-                const isSelected = selectedModel === model.id;
+                const installedModel = models.find((m) => m.name === `ollama:${model.id}`);
+                const isInstalled = Boolean(installedModel);
+                const modelName = `ollama:${model.id}`;
+                const isSelected = selectedModel === modelName;
 
                 return (
                   <article
@@ -244,7 +247,7 @@ export default function ModelManagement({ models, catalog, onRefresh, onRefreshC
                           <h3 className="text-lg font-semibold text-white truncate">{model.name}</h3>
                           <div className="mt-1 flex flex-wrap items-center gap-2">
                             <span className="rounded-full bg-white/[0.06] px-2 py-1 text-xs text-[#9fb1ad]">{model.provider}</span>
-                            {getFitBadge(model.fit_score)}
+                            {getFitBadge(model)}
                             {isInstalled && (
                               <span className="rounded-full bg-emerald-400/10 px-2 py-1 text-xs text-emerald-200">Installed</span>
                             )}
@@ -252,7 +255,7 @@ export default function ModelManagement({ models, catalog, onRefresh, onRefreshC
                         </div>
                       </div>
                       <button
-                        onClick={() => isInstalled ? onSelectModel(model.id) : handleInstall(model.id)}
+                        onClick={() => isInstalled ? onSelectModel(modelName) : handleInstall(model.id)}
                         disabled={installing[model.id]}
                         className={`rounded-xl px-3 py-2 text-xs font-semibold transition flex items-center gap-2 ${
                           isSelected
@@ -280,8 +283,8 @@ export default function ModelManagement({ models, catalog, onRefresh, onRefreshC
                     </p>
 
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Metric label="Min VRAM" value={`${model.min_vram_gb} GB`} />
-                      <Metric label="Recommended" value={`${model.recommended_vram_gb} GB`} />
+                      <Metric label="Estimated memory" value={`${model.required_memory_gb || model.min_vram_gb || 0} GB`} />
+                      <Metric label="Compatibility" value={`${model.fit_score ?? 0}% · ${model.fit_label || 'Unknown'}`} />
                     </div>
                   </article>
                 );

@@ -58,6 +58,7 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
   const [selectedNode, setSelectedNode] = useState(null);
   const [connectingSource, setConnectingSource] = useState(null);
   const [relationType, setRelationType] = useState('relates_to');
+  const [isSavingConnection, setIsSavingConnection] = useState(false);
   const [toast, setToast] = useState(null);
 
   const canvasRef = useRef(null);
@@ -65,6 +66,7 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
   const simEdgesRef = useRef([]);
   const transformRef = useRef({ x: 0, y: 0, scale: 1 });
   const isDraggingNodeRef = useRef(null);
+  const simulationEnabledRef = useRef(true);
   const isPanningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0 });
   const animationFrameRef = useRef(null);
@@ -147,6 +149,10 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
       const edges = simEdgesRef.current;
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
+
+      // Keep the rest of the graph stable while a node is being repositioned.
+      // Applying force updates here makes a drag unexpectedly stretch the tree.
+      if (!simulationEnabledRef.current || isDraggingNodeRef.current) return;
 
       // 1. Repulsion between all pairs
       for (let i = 0; i < nodes.length; i++) {
@@ -363,13 +369,15 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
 
     if (clickedNode) {
       if (connectingSource) {
-        if (connectingSource.id !== clickedNode.id) {
-          handleCreateEdge(connectingSource.id, clickedNode.id);
+        if (connectingSource.id === clickedNode.id) {
+          showToast('Choose a different node as the target', 'error');
+          return;
         }
-        setConnectingSource(null);
+        handleCreateEdge(connectingSource.id, clickedNode.id);
         return;
       }
       isDraggingNodeRef.current = clickedNode;
+      simulationEnabledRef.current = false;
       setSelectedNode(clickedNode);
     } else {
       if (connectingSource) {
@@ -415,6 +423,7 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
   };
 
   const handleCreateEdge = async (sourceId, targetId) => {
+    setIsSavingConnection(true);
     try {
       const res = await fetch(`${apiUrl}/memories/edges`, {
         method: 'POST',
@@ -427,9 +436,12 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
       });
       if (!res.ok) throw new Error('Failed to link nodes');
       showToast(`Linked: ${relationType}`, 'success');
-      fetchGraph();
+      setConnectingSource(null);
+      await fetchGraph();
     } catch (err) {
       showToast('Could not link memory nodes', 'error');
+    } finally {
+      setIsSavingConnection(false);
     }
   };
 
@@ -453,6 +465,22 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
       fetchGraph();
     } catch (err) {
       showToast('Delete edge failed', 'error');
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!window.confirm('Delete all saved memories and links? This cannot be undone.')) return;
+    try {
+      const res = await fetch(`${apiUrl}/memories/all`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete all memories');
+      setGraphData({ nodes: [], edges: [] });
+      simNodesRef.current = [];
+      simEdgesRef.current = [];
+      setSelectedNode(null);
+      if (onRefreshCount) onRefreshCount(0);
+      showToast('All memories deleted', 'info');
+    } catch (err) {
+      showToast('Delete all failed', 'error');
     }
   };
 
@@ -528,32 +556,56 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
             >
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
+            {graphData.nodes.length > 0 && (
+              <button
+                onClick={handleDeleteAll}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 text-xs font-medium text-rose-200 backdrop-blur-xl transition hover:border-rose-400/40 hover:bg-rose-400/20"
+                title="Delete all memories and links"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Clear all
+              </button>
+            )}
           </div>
         </div>
 
         {/* Floating Connect Prompt */}
         {connectingSource && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 rounded-2xl border border-[#28ead8]/30 bg-[#07100f]/95 px-4 py-2.5 shadow-2xl backdrop-blur-xl">
-            <Sparkles className="h-4 w-4 text-[#8ffcf0] animate-pulse" />
-            <span className="text-xs text-[#cbdad6]">
-              Click a target node to connect with relation:
-            </span>
-            <select
-              value={relationType}
-              onChange={(e) => setRelationType(e.target.value)}
-              className="rounded-lg border border-white/[0.1] bg-[#0b1716] px-2 py-1 text-xs text-[#8ffcf0] outline-none"
-            >
-              <option value="relates_to">relates_to</option>
-              <option value="references">references</option>
-              <option value="derived_from">derived_from</option>
-              <option value="follows">follows</option>
-            </select>
-            <button
-              onClick={() => setConnectingSource(null)}
-              className="rounded-lg p-1 text-[#6b827d] hover:bg-white/[0.06] hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
+          <div className="absolute top-16 left-1/2 z-30 w-[min(90%,34rem)] -translate-x-1/2 rounded-2xl border border-[#28ead8]/30 bg-[#07100f]/95 p-4 shadow-2xl backdrop-blur-xl">
+            <div className="flex items-start gap-3">
+              <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#8ffcf0] animate-pulse" />
+              <div className="min-w-0 flex-1">
+              <div>
+                  <div className="text-sm font-semibold text-white">Link this memory</div>
+                  <div className="mt-1 text-xs text-[#9fb1ad]">
+                    Select a relationship, then click a different node to finish linking.
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {[
+                    ['relates_to', 'Related'],
+                    ['references', 'References'],
+                    ['derived_from', 'Derived from'],
+                    ['follows', 'Follows']
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      onClick={() => setRelationType(value)}
+                      disabled={isSavingConnection}
+                      className={`rounded-xl border px-2 py-2 text-xs transition ${relationType === value ? 'border-[#28ead8]/45 bg-[#20dcca]/15 text-[#8ffcf0]' : 'border-white/[0.08] bg-white/[0.03] text-[#9fb1ad] hover:border-white/[0.18] hover:text-white'} disabled:cursor-wait disabled:opacity-60`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button onClick={() => setConnectingSource(null)} disabled={isSavingConnection} className="rounded-lg p-1 text-[#6b827d] hover:bg-white/[0.06] hover:text-white disabled:opacity-50" aria-label="Cancel linking">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {isSavingConnection && (
+              <div className="mt-3 text-xs text-[#8ffcf0]">Saving link…</div>
+            )}
           </div>
         )}
 
@@ -613,7 +665,7 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
           <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-4">
             <div className="flex items-center gap-2">
               <span className="rounded-lg border border-[#28ead8]/30 bg-[#20dcca]/10 px-2 py-0.5 text-[11px] font-semibold uppercase text-[#8ffcf0]">
-                {selectedNode.node_type}
+                {NODE_COLORS[selectedNode.node_type]?.label || 'Memory'}
               </span>
               <span className="text-xs text-[#637a75] font-mono">{selectedNode.id.slice(0, 10)}</span>
             </div>
