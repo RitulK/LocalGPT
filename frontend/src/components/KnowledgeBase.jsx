@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   BookOpen,
@@ -25,6 +25,34 @@ export default function KnowledgeBase({
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
   const [expandedDocIds, setExpandedDocIds] = useState(new Set());
+  const [pendingDocumentId, setPendingDocumentId] = useState(null);
+
+  useEffect(() => {
+    if (pendingDocumentId === null) return;
+    const uploadedDocument = documents.find((document) => document.id === pendingDocumentId);
+    if (uploadedDocument?.status === 'ready') {
+      onSelectedDocumentIdsChange((current) => [...new Set([...current, pendingDocumentId])]);
+      onToggleRag(true);
+      setMessage(`${uploadedDocument.filename} is ready.`);
+      setPendingDocumentId(null);
+    } else if (uploadedDocument?.status === 'failed') {
+      setMessage(uploadedDocument.error || `${uploadedDocument.filename} failed to index.`);
+      setPendingDocumentId(null);
+    }
+  }, [documents, pendingDocumentId, onSelectedDocumentIdsChange, onToggleRag]);
+
+  useEffect(() => {
+    const hasActiveJobs = documents.some((document) =>
+      document.status === 'pending' || document.status === 'indexing'
+    );
+    if (!hasActiveJobs) return undefined;
+
+    const interval = window.setInterval(() => {
+      onRefresh();
+    }, 1500);
+
+    return () => window.clearInterval(interval);
+  }, [documents, onRefresh]);
 
   const readyDocuments = documents.filter((document) => document.status === 'ready');
 
@@ -54,8 +82,11 @@ export default function KnowledgeBase({
         onSelectedDocumentIdsChange((current) => [...new Set([...current, data.document.id])]);
         onToggleRag(true);
         setMessage(`${data.document.filename} is ready.`);
-      } else {
-        setMessage(data.document?.error || `${file.name} was uploaded but indexing failed.`);
+      } else if (data.document?.status === 'failed') {
+        setMessage(data.document.error || `${file.name} failed to index.`);
+      } else if (data.document?.id) {
+        setPendingDocumentId(data.document.id);
+        setMessage(`${file.name} was uploaded and is indexing...`);
       }
     } catch (error) {
       setMessage(error.message || 'Upload failed.');

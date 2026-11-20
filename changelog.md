@@ -2,6 +2,64 @@
 
 All notable repository changes are recorded here, newest first.
 
+## 2026-11-21
+
+### Startup and Ollama remediation
+
+- Updated [`start.sh`](start.sh) to explicitly use `backend/venv/bin/python`, verify Ollama and backend readiness, start Ollama when absent, and surface startup logs instead of continuing with dead services.
+- Updated [`setup.sh`](setup.sh) to launch the backend with the project virtual environment.
+- Added `pydantic-settings` to the backend requirements and moved missing-SlowAPI handling into `app/core/limiter.py` for a clear startup error.
+- Verified Ollama on port 11434 with 3 available models; backend health now reports `ollama_running: true`.
+
+
+## 2026-11-21
+
+### Repository status reconciliation
+
+- Moved the HTTP request logging middleware out of `backend/main.py` into
+  `app/core/logging.py`, removed duplicate imports, and restored the application
+  entry point below the 60-line structural-test limit.
+- Reconciled `BACKLOG.md` and `project.md` with implementation: P6-S1 is complete;
+  P7-S1 and P7-S2 are complete; P7-S3 and all P8 stories remain outstanding.
+- Recorded that the current Laya implementation is a test-oriented simulation
+  rather than a real ONNX runtime and is not integrated into RAG or memory flows.
+
+### Audit remediation
+
+- Added SlowAPI chat/document limits, rate-limit exception handling, and explicit
+  CORS method/header allowlists.
+- Added frontend document polling and automatic selection after ready status,
+  plus configured API URL use for model installation.
+- Added chat prevalidation for missing models and invalid conversation IDs,
+  replaced deprecated Pydantic settings serialization, and documented optional
+  Laya ONNX model and tokenizer paths.
+- Replaced the Laya stub with ONNX Runtime loading when model/tokenizer files are
+  configured, retaining a bounded deterministic fallback otherwise.
+- Added RAG retrieval gating, `rag_bypassed` SSE metadata, a frontend bypass
+  indicator, and automatic preference-node capture.
+- Validation: 44 backend tests pass, frontend build passes, 9 cross-browser
+  Playwright tests pass, live RAG bypass metadata was verified, HTTP 429 returned
+  at the chat limit, and CORS preflight returned the explicit allowlist.
+
+### Expanded test coverage and live audit
+
+- Added API route coverage for health, conversations, documents, memory graph,
+  and settings.
+- Replaced the placeholder Playwright external-site tests with mocked LocalGPT
+  workspace, navigation, and chat-request coverage.
+- Validation: 44 backend tests pass, frontend production build passes, and 9
+  Playwright tests pass across Chromium, Firefox, and WebKit.
+- Live HTTP audit passed for health, settings, conversations, model listing,
+  memory graph, chat streaming, and document upload/indexing. A text upload moved
+  from `pending` to `ready` and was removed after verification.
+- Audit findings: P7-S3 is not wired (SlowAPI limiter exists only as a helper,
+  CORS methods and headers are wildcards); P8-S1 through P8-S3 are not integrated
+  and Laya is a simulation; knowledge upload UI does not poll pending documents;
+  model installation uses a hardcoded API host instead of the configured API URL;
+  chat cannot reliably surface async `ValueError` failures through `StreamingResponse`;
+  settings POST uses a deprecated Pydantic `dict()` call.
+
+
 ## 2026-10-03
 
 ### P5-S3 Interactive Memory Graph Visualizer & Linker

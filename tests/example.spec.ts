@@ -1,38 +1,75 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 
-test.describe('External tests', () => {
-  test('has title', async ({ page }) => {
-    await page.goto('https://playwright.dev/');
+async function mockApi(page: Page) {
+  await page.route('http://localhost:8000/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
 
-    // Expect a title "to contain" a substring.
-    await expect(page).toHaveTitle(/Playwright/);
+    if (url.pathname === '/health') return route.fulfill({ json: { status: 'ok', ollama_running: true } });
+    if (url.pathname === '/conversations') {
+      if (request.method() === 'POST') {
+        return route.fulfill({ json: { conversation: { id: 1, title: 'New Chat', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), messages: [] } } });
+      }
+      return route.fulfill({ json: { conversations: [{ id: 1, title: 'Test chat', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), messages: [] }] } });
+    }
+    if (url.pathname === '/models') return route.fulfill({ json: { models: [{ name: 'qwen2.5-coder:7b', size: 1024 }] } });
+    if (url.pathname === '/models/catalog') return route.fulfill({ json: { catalog: [{ name: 'llama3.2', size: 1024 }] } });
+    if (url.pathname === '/settings') return route.fulfill({ json: { enable_thinking: false, reasoning_budget: 8192 } });
+    if (url.pathname === '/documents') return route.fulfill({ json: { documents: [] } });
+    if (url.pathname === '/memories/graph') return route.fulfill({ json: { nodes: [], edges: [] } });
+    if (url.pathname.startsWith('/conversations/')) return route.fulfill({ json: { conversation: { id: 1, title: 'Test chat', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), messages: [] } } });
+
+    return route.fulfill({ status: 404, json: { detail: 'Not mocked' } });
+  });
+}
+
+test.describe('LocalGPT interface', () => {
+  test('loads chat workspace and navigation', async ({ page }) => {
+    await mockApi(page);
+    await page.goto('/');
+
+    await expect(page.getByText('LocalGPT')).toBeVisible();
+    await expect(page.getByText('Ollama connected')).toBeVisible();
+    await expect(page.getByRole('navigation').getByRole('button', { name: 'Knowledge', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Memory Graph' })).toBeVisible();
   });
 
-  test('get started link', async ({ page }) => {
-    await page.goto('https://playwright.dev/');
+  test('navigates to knowledge, models, memory, and settings', async ({ page }) => {
+    await mockApi(page);
+    await page.goto('/');
 
-    // Click the get started link.
-    await page.getByRole('link', { name: 'Get started' }).click();
+    await page.getByRole('navigation').getByRole('button', { name: 'Knowledge', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Knowledge' })).toBeVisible();
 
-    // Expects page to have a heading with the name of Installation.
-    await expect(page.getByRole('heading', { name: 'Installation' })).toBeVisible();
-  });
-});
+    await page.getByRole('button', { name: 'Models' }).click();
+    await expect(page.getByRole('heading', { name: 'Models' })).toBeVisible();
 
-test.describe('LocalGPT App Tests', () => {
-  // These tests require the frontend dev server running on localhost:5173
-  // and the backend running on localhost:8000
-  // Run with: npm run dev (from frontend/) and python main.py (from backend/)
-  
-  test.skip('frontend loads successfully', async ({ page }) => {
-    // Skipped by default - run manually with servers
-    await page.goto('http://localhost:5173/');
-    await expect(page).toHaveTitle(/LocalGPT|Vite/);
+    await page.getByRole('button', { name: 'Memory Graph' }).click();
+    await expect(page.getByRole('heading', { name: 'Your Memory Graph is Empty' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
   });
 
-  test.skip('backend API health check', async ({ page }) => {
-    // Skipped by default - run manually with servers
-    const response = await page.request.get('http://localhost:8000/health');
-    expect(response.status()).toBeLessThan(500);
+  test('sends a chat prompt to the backend', async ({ page }) => {
+    await mockApi(page);
+    await page.route('**/chat', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/event-stream',
+        body: 'data: {"type":"metadata","model":"qwen2.5-coder:7b","conversation_id":1,"rag_used":false,"sources":[],"memories_used":[],"thinking_enabled":false}\n\ndata: {"type":"content","content":"Hello from LocalGPT"}\n\ndata: {"type":"done"}\n\n',
+      });
+    });
+    await page.goto('/');
+
+    await expect(page.getByRole('button', { name: 'qwen2.5-coder:7b' })).toBeVisible();
+    await page.locator('textarea').first().fill('Hello');
+    const sendButton = page.getByRole('button', { name: 'Send', exact: true });
+    await expect(sendButton).toBeEnabled();
+    const chatRequest = page.waitForRequest((request) => request.url().endsWith('/chat') && request.method() === 'POST');
+    await sendButton.click();
+
+    const request = await chatRequest;
+    expect(request.postDataJSON().prompt).toBe('Hello');
   });
 });

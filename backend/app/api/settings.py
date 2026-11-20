@@ -13,4 +13,4 @@ async def get_settings():
 
 @router.post("/settings")
 async def update_settings(settings: Settings):
-    return settings_service.update_settings(settings.dict())
+    return settings_service.update_settings(settings.model_dump())

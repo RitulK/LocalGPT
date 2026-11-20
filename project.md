@@ -36,10 +36,15 @@ in [`BACKLOG.md`](BACKLOG.md).
 ## Built So Far
 
 - FastAPI backend with chat, conversation, document, memory, model, settings,
-  health, and router-test endpoints.
-- React/Vite frontend.
-- Ollama, vLLM, NVIDIA, and RAG integrations.
-- P1-S1 backend app layering and route extraction.
+  and health endpoints.
+- React/Vite frontend with chat, knowledge-base, memory graph, model, and
+  settings views.
+- Ollama, OpenAI-compatible vLLM, NVIDIA, TinyFish web tools, Chroma RAG, and
+  graph-memory integrations.
+- P1–P6 implementation is present, including backend layering, provider
+  consolidation, typed SSE events, RAG, graph memory, and async PDF ingestion.
+- P7-S1 centralized Pydantic settings and P7-S2 structured JSON logging are
+  implemented.
 
 ## Feature Updates
 
@@ -49,11 +54,16 @@ in [`BACKLOG.md`](BACKLOG.md).
 
 ## Current Status
 
-P1-S1 implementation is complete. The structure and root endpoint have been
-validated. Full test results are tracked in `changelog.md`.
+Backend and frontend implementation is substantially complete through the graph
+memory and live-tool work. P7-S1 and P7-S2 are implemented; P7-S3 rate limiting
+and CORS hardening remain incomplete. The Phase 8 Laya implementation is still a
+simulation and is not connected to RAG retrieval or automatic memory extraction.
+Full validation and feature audit results are tracked in `changelog.md`.
 
 ## Next Steps
 
-- Mark P1-S1 acceptance criteria complete after the full suite passes.
-- Continue with P1-S2, moving chat behavior behind the planned `ChatService`
-  interface.
+- Complete P7-S3 by wiring SlowAPI to `/chat` and `/documents` and making CORS
+  method and header allowlists explicit.
+- Replace the Phase 8 Laya simulation with a real ONNX runtime.
+- Integrate Laya with dynamic RAG guarding and preference extraction.
+- Expand backend and Playwright coverage to match all implemented features.

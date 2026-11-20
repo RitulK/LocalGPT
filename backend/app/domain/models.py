@@ -7,6 +7,7 @@ class MetadataEvent(BaseModel):
     model: str
     conversation_id: int
     rag_used: bool = False
+    rag_bypassed: bool = False
     sources: List[Dict[str, Any]] = Field(default_factory=list)
     memories_used: List[str] = Field(default_factory=list)
     thinking_enabled: bool = False

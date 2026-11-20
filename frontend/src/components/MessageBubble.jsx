@@ -13,6 +13,17 @@ const normalizeMarkdownTables = (content) => (
 
 export default function MessageBubble({ message, onSaveMessage, onSaveThread }) {
   const [copied, setCopied] = useState(false);
+  const [savingMemory, setSavingMemory] = useState(false);
+  const [savingThread, setSavingThread] = useState(false);
+
+  const runSave = async (handler, value, setSaving) => {
+    setSaving(true);
+    try {
+      await handler(value);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -137,23 +148,25 @@ export default function MessageBubble({ message, onSaveMessage, onSaveThread }) 
 
             {onSaveMessage && (
               <button
-                onClick={() => onSaveMessage(message)}
-                className="text-[10px] text-[#667b76] hover:text-[#8ffcf0] flex items-center gap-1 transition"
+                onClick={() => runSave(onSaveMessage, message, setSavingMemory)}
+                disabled={savingMemory || savingThread}
+                className="text-[10px] text-[#667b76] hover:text-[#8ffcf0] flex items-center gap-1 transition disabled:cursor-wait disabled:opacity-60"
                 title="Save this response as a Memory Node"
               >
                 <Brain className="w-3 h-3 text-[#20dcca]" />
-                Save to Memory
+                {savingMemory ? 'Naming and saving…' : 'Save to Memory'}
               </button>
             )}
 
             {onSaveThread && message.id && (
               <button
-                onClick={() => onSaveThread(message.id)}
-                className="text-[10px] text-[#667b76] hover:text-[#8ffcf0] flex items-center gap-1 transition"
+                onClick={() => runSave(onSaveThread, message.id, setSavingThread)}
+                disabled={savingMemory || savingThread}
+                className="text-[10px] text-[#667b76] hover:text-[#8ffcf0] flex items-center gap-1 transition disabled:cursor-wait disabled:opacity-60"
                 title="Save conversation thread up to this response"
               >
                 <GitBranch className="w-3 h-3 text-emerald-400" />
-                Save thread up to here
+                {savingThread ? 'Naming and saving…' : 'Save thread up to here'}
               </button>
             )}
           </div>

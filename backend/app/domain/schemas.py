@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -47,5 +47,5 @@ class ThreadCaptureRequest(BaseModel):
 class MemoryEdgeCreate(BaseModel):
     source_id: str
     target_id: str
-    relation: str = "relates_to"
+    relation: Literal["relates_to", "references", "derived_from", "follows"] = "relates_to"
     metadata: Optional[dict] = None

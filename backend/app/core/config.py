@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     TINYFISH_BASE_URL: str = "https://agent.tinyfish.ai/v1/automation"
     OLLAMA_CLOUD_MODELS_ENABLED: bool = True
 
+    # Optional local Laya ONNX decision model
+    LAYA_MODEL_PATH: str = ""
+    LAYA_TOKENIZER_PATH: str = ""
+
     # RAG Settings
     RAG_EMBEDDING_MODEL: str = "nomic-embed-text"
     RAG_CHUNK_WORDS: int = 800

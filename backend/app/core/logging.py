@@ -1,7 +1,10 @@
 import logging
 import sys
+import time
+import uuid
+
 import structlog
-from typing import Any
+from fastapi import Request
 
 def configure_logging():
     # Standard library logging configuration to pipe everything through structlog
@@ -26,6 +29,37 @@ def configure_logging():
 
 # Global logger instance
 logger = structlog.get_logger()
+
+
+async def logging_middleware(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    start_time = time.perf_counter()
+    structlog.contextvars.bind_contextvars(request_id=request_id)
+
+    try:
+        response = await call_next(request)
+        latency = (time.perf_counter() - start_time) * 1000
+        logger.info(
+            "request_completed",
+            path=request.url.path,
+            method=request.method,
+            status=response.status_code,
+            latency_ms=round(latency, 2),
+        )
+        return response
+    except Exception as exc:
+        latency = (time.perf_counter() - start_time) * 1000
+        logger.error(
+            "request_failed",
+            path=request.url.path,
+            method=request.method,
+            error=str(exc),
+            latency_ms=round(latency, 2),
+        )
+        raise
+    finally:
+        structlog.contextvars.clear_contextvars()
+
 
 # Initialize logging on import
 configure_logging()

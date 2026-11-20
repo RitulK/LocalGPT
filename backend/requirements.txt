@@ -2,6 +2,7 @@ fastapi==0.115.0
 uvicorn[standard]==0.32.0
 httpx==0.27.2
 pydantic==2.9.2
+pydantic-settings
 python-multipart==0.0.12
 chromadb==0.5.23
 pypdf==5.1.0
@@ -12,3 +13,7 @@ langchain-openai
 langchain-chroma
 structlog
 psutil
+slowapi
+onnxruntime
+tokenizers
+numpy

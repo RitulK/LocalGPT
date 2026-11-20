@@ -64,6 +64,7 @@ export default function ChatWindow({
   const [error, setError] = useState('');
   const [toast, setToast] = useState(null);
   const [showSources, setShowSources] = useState(false);
+  const [ragBypassed, setRagBypassed] = useState(false);
   const messagesContainerRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -165,10 +166,12 @@ export default function ChatWindow({
           const data = JSON.parse(dataLine.slice(6));
           if (data.type === 'metadata') {
             actualModel = data.model;
+            setRagBypassed(Boolean(data.rag_bypassed));
             onUpdateLastMessage(conversation.id, {
               model: actualModel,
               sources: data.sources || [],
-              ragUsed: data.rag_used
+              ragUsed: data.rag_used,
+              ragBypassed: data.rag_bypassed
             });
           } else if (data.type === 'content') {
             accumulatedContent += data.content;
@@ -323,6 +326,11 @@ export default function ChatWindow({
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {ragBypassed && (
+            <div className="hidden items-center gap-2 rounded-full border border-amber-300/15 bg-amber-300/[0.06] px-3 py-1.5 text-xs text-amber-100/80 md:flex" title="Knowledge retrieval was skipped for this conversational prompt">
+              RAG bypassed
+            </div>
+          )}
           <div className="hidden items-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.035] px-3 py-1.5 text-xs text-[#9fb1ad] md:flex">
             <Cpu className="h-3.5 w-3.5 text-[#55f3df]" />
             {selectedModel || 'No model selected'}

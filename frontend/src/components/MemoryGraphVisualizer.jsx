@@ -66,6 +66,7 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
   const simEdgesRef = useRef([]);
   const transformRef = useRef({ x: 0, y: 0, scale: 1 });
   const isDraggingNodeRef = useRef(null);
+  const pointerMovedRef = useRef(false);
   const simulationEnabledRef = useRef(true);
   const isPanningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0 });
@@ -97,7 +98,9 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
   // Synchronize simulation nodes & edges when graphData changes
   useEffect(() => {
     const existingPos = new Map();
-    simNodesRef.current.forEach((n) => existingPos.set(n.id, { x: n.x, y: n.y, vx: n.vx, vy: n.vy }));
+    simNodesRef.current.forEach((n) => existingPos.set(n.id, {
+      x: n.x, y: n.y, vx: n.vx, vy: n.vy, pinned: n.pinned
+    }));
 
     const canvas = canvasRef.current;
     const width = canvas ? canvas.width : 800;
@@ -116,7 +119,10 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
     const nodes = filteredNodes.map((n, idx) => {
       const prev = existingPos.get(n.id);
       if (prev) {
-        return { ...n, x: prev.x, y: prev.y, vx: prev.vx || 0, vy: prev.vy || 0, radius: 24 };
+        return {
+          ...n, x: prev.x, y: prev.y, vx: prev.vx || 0, vy: prev.vy || 0,
+          pinned: prev.pinned || false, radius: 24
+        };
       }
       const angle = (idx / (filteredNodes.length || 1)) * 2 * Math.PI;
       const dist = 140 + Math.random() * 80;
@@ -197,7 +203,7 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
 
       // 3. Gravity towards center and velocity damping
       nodes.forEach((n) => {
-        if (isDraggingNodeRef.current && isDraggingNodeRef.current.id === n.id) {
+        if (n.pinned || (isDraggingNodeRef.current && isDraggingNodeRef.current.node.id === n.id)) {
           return;
         }
         n.vx += (centerX - n.x) * 0.003;
@@ -271,7 +277,7 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.moveTo(src.x, src.y);
-          ctx.lineTo(canvas.width / 2, canvas.height / 2);
+          ctx.lineTo(src.x + 36, src.y - 36);
           ctx.stroke();
           ctx.restore();
         }
@@ -338,13 +344,21 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
     const handleResize = () => {
       const canvas = canvasRef.current;
       if (canvas && canvas.parentElement) {
-        canvas.width = canvas.parentElement.clientWidth;
-        canvas.height = canvas.parentElement.clientHeight;
+        const { width, height } = canvas.parentElement.getBoundingClientRect();
+        canvas.width = Math.max(1, Math.round(width));
+        canvas.height = Math.max(1, Math.round(height));
       }
     };
     handleResize();
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const observer = canvasRef.current?.parentElement && typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(handleResize)
+      : null;
+    if (observer && canvasRef.current?.parentElement) observer.observe(canvasRef.current.parentElement);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      observer?.disconnect();
+    };
   }, []);
 
   // Coordinate conversion helper
@@ -360,6 +374,7 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
   };
 
   const handlePointerDown = (e) => {
+    if (isSavingConnection) return;
     const coords = getCanvasCoords(e.clientX, e.clientY);
     const clickedNode = simNodesRef.current.find((n) => {
       const dx = n.x - coords.x;
@@ -376,13 +391,15 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
         handleCreateEdge(connectingSource.id, clickedNode.id);
         return;
       }
-      isDraggingNodeRef.current = clickedNode;
+      canvasRef.current?.setPointerCapture?.(e.pointerId);
+      isDraggingNodeRef.current = { node: clickedNode, startX: e.clientX, startY: e.clientY };
+      pointerMovedRef.current = false;
       simulationEnabledRef.current = false;
-      setSelectedNode(clickedNode);
     } else {
       if (connectingSource) {
         setConnectingSource(null);
       }
+      canvasRef.current?.setPointerCapture?.(e.pointerId);
       isPanningRef.current = true;
       panStartRef.current = { x: e.clientX - transformRef.current.x, y: e.clientY - transformRef.current.y };
     }
@@ -391,19 +408,28 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
   const handlePointerMove = (e) => {
     if (isDraggingNodeRef.current) {
       const coords = getCanvasCoords(e.clientX, e.clientY);
-      isDraggingNodeRef.current.x = coords.x;
-      isDraggingNodeRef.current.y = coords.y;
-      isDraggingNodeRef.current.vx = 0;
-      isDraggingNodeRef.current.vy = 0;
+      const drag = isDraggingNodeRef.current;
+      if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 4) pointerMovedRef.current = true;
+      if (pointerMovedRef.current) {
+        drag.node.x = coords.x;
+        drag.node.y = coords.y;
+        drag.node.vx = 0;
+        drag.node.vy = 0;
+      }
     } else if (isPanningRef.current) {
       transformRef.current.x = e.clientX - panStartRef.current.x;
       transformRef.current.y = e.clientY - panStartRef.current.y;
     }
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e) => {
+    const drag = isDraggingNodeRef.current;
+    if (drag && !pointerMovedRef.current) setSelectedNode(drag.node);
+    if (drag && pointerMovedRef.current) drag.node.pinned = true;
     isDraggingNodeRef.current = null;
     isPanningRef.current = false;
+    simulationEnabledRef.current = !(drag && pointerMovedRef.current);
+    if (canvasRef.current?.hasPointerCapture?.(e.pointerId)) canvasRef.current.releasePointerCapture(e.pointerId);
   };
 
   const handleWheel = (e) => {
@@ -423,6 +449,7 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
   };
 
   const handleCreateEdge = async (sourceId, targetId) => {
+    if (isSavingConnection) return;
     setIsSavingConnection(true);
     try {
       const res = await fetch(`${apiUrl}/memories/edges`, {
@@ -583,14 +610,15 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {[
-                    ['relates_to', 'Related'],
-                    ['references', 'References'],
-                    ['derived_from', 'Derived from'],
-                    ['follows', 'Follows']
-                  ].map(([value, label]) => (
+                    ['relates_to', 'Related', 'A general association; direction does not imply dependency.'],
+                    ['references', 'References', 'This memory points to or cites the target memory.'],
+                    ['derived_from', 'Derived from', 'This memory was created from or based on the target.'],
+                    ['follows', 'Follows', 'This memory comes after the target in a sequence.']
+                  ].map(([value, label, description]) => (
                     <button
                       key={value}
                       onClick={() => setRelationType(value)}
+                      title={description}
                       disabled={isSavingConnection}
                       className={`rounded-xl border px-2 py-2 text-xs transition ${relationType === value ? 'border-[#28ead8]/45 bg-[#20dcca]/15 text-[#8ffcf0]' : 'border-white/[0.08] bg-white/[0.03] text-[#9fb1ad] hover:border-white/[0.18] hover:text-white'} disabled:cursor-wait disabled:opacity-60`}
                     >
@@ -598,6 +626,13 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
                     </button>
                   ))}
                 </div>
+                <p className="mt-2 text-xs leading-5 text-[#819690]">
+                  {relationType === 'relates_to' && 'Use for a general connection between two memories.'}
+                  {relationType === 'references' && 'Use when this memory points to or cites the selected target.'}
+                  {relationType === 'derived_from' && 'Use when this memory was created from or based on the selected target.'}
+                  {relationType === 'follows' && 'Use when this memory comes after the selected target in a sequence.'}
+                </p>
+                <p className="mt-1 text-xs text-[#819690]">Choose a type, then click the target node. The link is saved immediately.</p>
               </div>
               <button onClick={() => setConnectingSource(null)} disabled={isSavingConnection} className="rounded-lg p-1 text-[#6b827d] hover:bg-white/[0.06] hover:text-white disabled:opacity-50" aria-label="Cancel linking">
                 <X className="h-4 w-4" />
@@ -615,6 +650,7 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
           onWheel={handleWheel}
           className="h-full w-full cursor-grab active:cursor-grabbing"
         />
@@ -627,7 +663,7 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
             </div>
             <h3 className="text-xl font-semibold text-white">Your Memory Graph is Empty</h3>
             <p className="mt-2 max-w-md text-sm text-[#819690] leading-6">
-              Capture knowledge from your chats! Hover over any assistant message in Chat to save notes or thread snapshots into this interconnected graph.
+              Use the Save note or Save thread action on a chat message to add a memory. Memories and links are added only when you choose those actions.
             </p>
           </div>
         )}

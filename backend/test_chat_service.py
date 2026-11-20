@@ -18,7 +18,7 @@ class ChatServiceTest(unittest.IsolatedAsyncioTestCase):
         public_methods = [
             m for m in dir(ChatService) if not m.startswith("_")
         ]
-        self.assertEqual(public_methods, ["stream_chat"])
+        self.assertEqual(public_methods, ["stream_chat", "validate_request"])
 
     @patch("app.services.chat_service.llm_gateway")
     async def test_stream_chat_missing_model_raises_value_error(self, mock_llm_gateway):

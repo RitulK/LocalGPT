@@ -1,4 +1,6 @@
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Request, UploadFile
+
+from app.core.limiter import limiter
 
 from app.services import document_service
 
@@ -11,7 +13,8 @@ async def list_documents():
 
 
 @router.post("/documents")
-async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+@limiter.limit("30/minute")
+async def upload_document(request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     try:
         return {"document": await document_service.upload_document(file, background_tasks)}
     except ValueError as exc:

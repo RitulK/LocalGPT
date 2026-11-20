@@ -168,7 +168,7 @@ if [ "$START_NOW" = "y" ] || [ "$START_NOW" = "Y" ]; then
     echo "Starting backend..."
     cd ../backend
     source venv/bin/activate
-    python main.py &
+    venv/bin/python main.py &
     BACKEND_PID=$!
     
     echo "Waiting for backend to start..."

@@ -362,6 +362,7 @@ function App() {
                 fetchCatalog();
               }}
               onRefreshCatalog={fetchCatalog}
+              apiUrl={API_URL}
               selectedModel={selectedModel}
               onSelectModel={setSelectedModel}
             />

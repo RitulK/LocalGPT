@@ -288,7 +288,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 ### [P6-S1] BackgroundTasks for PDF ingestion
 
 - **ID:** P6-S1
-- **Status:** todo
+- **Status:** completed
 - **Phase:** 6
 - **Priority:** high
 - **Estimate:** S (~1 h)
@@ -314,7 +314,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 ### [P7-S1] `pydantic-settings` for configuration
 
 - **ID:** P7-S1
-- **Status:** todo
+- **Status:** completed
 - **Phase:** 7
 - **Priority:** medium
 - **Estimate:** S (~1 h)
@@ -333,7 +333,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 ### [P7-S2] `structlog` for JSON logs
 
 - **ID:** P7-S2
-- **Status:** todo
+- **Status:** completed
 - **Phase:** 7
 - **Priority:** low
 - **Estimate:** S (~1 h)
@@ -351,7 +351,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 ### [P7-S3] Lock CORS and add rate limits
 
 - **ID:** P7-S3
-- **Status:** todo
+- **Status:** completed
 - **Phase:** 7
 - **Priority:** low
 - **Estimate:** S (~1 h)
@@ -376,7 +376,7 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 ### [P8-S1] Local Laya ONNX runtime & Decision Service
 
 - **ID:** P8-S1
-- **Status:** todo
+- **Status:** in-progress
 - **Phase:** 8
 - **Priority:** high
 - **Estimate:** M (~2–3 h)
@@ -440,9 +440,9 @@ _Plan reference: see `/memories/session/plan.md` (v4)_
 | 3 — RAG simplification | P3-S1, P3-S2 | Done |
 | 4 — Remove router | P4-S1 | Done |
 | 5 — Graph Memory & Context Plugins | P5-S1, P5-S2, P5-S3 | Done |
-| 6 — Async ingestion | P6-S1 | not started |
-| 7 — Hygiene | P7-S1, P7-S2, P7-S3 | not started |
-| 8 — System 1 Decision Intelligence (Laya) | P8-S1, P8-S2, P8-S3 | not started |
+| 6 — Async ingestion | P6-S1 | Done |
+| 7 — Hygiene | P7-S1, P7-S2, P7-S3 | Done |
+| 8 — System 1 Decision Intelligence (Laya) | P8-S1, P8-S2, P8-S3 | P8-S1 ONNX support is model-configurable; P8-S2/P8-S3 integrated with fallback decisions |
 
 **Total: 17 stories across 8 phases.**
 

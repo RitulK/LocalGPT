@@ -27,6 +27,7 @@ from app.services.runtime import (
 )
 from app.core.config import settings
 from app.infrastructure.tinyfish.service import TinyFishService
+from app.infrastructure.decision.laya_service import laya_decision_service
 import re
 import json
 
@@ -49,6 +50,15 @@ def _requires_live_search(prompt: str) -> bool:
 class ChatService:
     """Service handling chat streaming, RAG retrieval, and message persistence via LLMGateway."""
 
+    def validate_request(self, request: ChatRequest, conversation_id: Optional[int] = None) -> None:
+        if not request.model:
+            raise ValueError("Model must be specified")
+        cid = conversation_id if conversation_id is not None else request.conversation_id
+        if cid is not None:
+            with get_connection() as conn:
+                if not conversation_repo.get(conn, cid):
+                    raise ValueError("Conversation not found")
+
     async def stream_chat(
         self, request: ChatRequest, conversation_id: Optional[int] = None
     ) -> AsyncIterator[str]:
@@ -66,8 +76,16 @@ class ChatService:
             selected_model = request.model
 
             rag_sources = []
+            rag_bypassed = False
             if request.use_rag and request.document_ids:
-                rag_sources = await rag_service.retrieve(request.prompt, request.document_ids, llm_gateway)
+                rag_probability = laya_decision_service.predict_noul(
+                    request.prompt,
+                    laya_decision_service.RAG_QUESTION,
+                )
+                if rag_probability < 0.45:
+                    rag_bypassed = True
+                else:
+                    rag_sources = await rag_service.retrieve(request.prompt, request.document_ids, llm_gateway)
 
             memory_context = ""
             if request.memory_node_ids:
@@ -93,7 +111,22 @@ class ChatService:
             messages.append({"role": "user", "content": request.prompt})
 
             existing_messages = message_repo.list_by_conversation(conn, cid)
-            message_repo.add(conn, cid, "user", request.prompt)
+            user_message = message_repo.add(conn, cid, "user", request.prompt)
+
+            preference_probability = laya_decision_service.predict_noul(
+                request.prompt,
+                laya_decision_service.PREFERENCE_QUESTION,
+            )
+            if preference_probability > 0.8:
+                try:
+                    memory_graph_service.capture_preference(
+                        conversation_id=cid,
+                        message_id=user_message["id"],
+                        content=request.prompt,
+                    )
+                except Exception:
+                    pass
+
             if not existing_messages:
                 title = request.prompt[:50] + ("..." if len(request.prompt) > 50 else "")
                 conversation_repo.update_title(conn, cid, title)
@@ -103,6 +136,7 @@ class ChatService:
             model=selected_model,
             conversation_id=cid,
             rag_used=bool(rag_sources),
+            rag_bypassed=rag_bypassed,
             sources=public_sources(rag_sources),
             memories_used=request.memory_node_ids or [],
             thinking_enabled=False,

@@ -14,7 +14,7 @@ import {
   Check
 } from 'lucide-react';
 
-export default function ModelManagement({ models, catalog, onRefresh, onRefreshCatalog, selectedModel, onSelectModel }) {
+export default function ModelManagement({ models, catalog, onRefresh, onRefreshCatalog, apiUrl = 'http://localhost:8000', selectedModel, onSelectModel }) {
   const [refreshing, setRefreshing] = useState(false);
   const [installing, setInstalling] = useState({});
   const [installProgress, setInstallProgress] = useState({});
@@ -48,7 +48,7 @@ export default function ModelManagement({ models, catalog, onRefresh, onRefreshC
     installControllers.current[modelId] = controller;
     setInstalling(prev => ({ ...prev, [modelId]: true }));
     try {
-      const response = await fetch(`http://localhost:8000/models/install-stream/${encodeURIComponent(modelId)}`, {
+      const response = await fetch(`${apiUrl}/models/install-stream/${encodeURIComponent(modelId)}`, {
         method: 'POST',
         signal: controller.signal,
       });

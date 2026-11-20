@@ -402,6 +402,25 @@ class MemoryGraphRepository:
                 node["metadata"] = {}
         return node
 
+    def update_node(
+        self,
+        conn: sqlite3.Connection,
+        node_id: str,
+        title: Optional[str],
+        content: str,
+        source_message_id: Optional[int],
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        conn.execute(
+            """
+            UPDATE memory_nodes
+            SET title = ?, content = ?, source_message_id = ?, metadata = ?
+            WHERE id = ?
+            """,
+            (title, content, source_message_id, json.dumps(metadata or {}), node_id),
+        )
+        return self.get_node(conn, node_id)
+
     def list_nodes(
         self,
         conn: sqlite3.Connection,

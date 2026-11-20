@@ -34,10 +34,15 @@ async def get_memory_graph(
 @router.post("/memories/capture/message")
 async def capture_message(request: MessageCaptureRequest):
     try:
+        title = request.title.strip() if request.title and request.title.strip() else await memory_graph_service.suggest_title(
+            conversation_id=request.conversation_id,
+            message_id=request.message_id,
+            kind="message",
+        )
         node = memory_graph_service.capture_message(
             conversation_id=request.conversation_id,
             message_id=request.message_id,
-            title=request.title,
+            title=title,
         )
         return {"node": node, "status": "captured"}
     except ValueError as exc:
@@ -47,10 +52,15 @@ async def capture_message(request: MessageCaptureRequest):
 @router.post("/memories/capture/thread")
 async def capture_thread(request: ThreadCaptureRequest):
     try:
+        title = request.title.strip() if request.title and request.title.strip() else await memory_graph_service.suggest_title(
+            conversation_id=request.conversation_id,
+            up_to_message_id=request.up_to_message_id,
+            kind="thread_snapshot",
+        )
         result = memory_graph_service.capture_thread(
             conversation_id=request.conversation_id,
             up_to_message_id=request.up_to_message_id,
-            title=request.title,
+            title=title,
         )
         return {**result, "status": "captured"}
     except ValueError as exc:
