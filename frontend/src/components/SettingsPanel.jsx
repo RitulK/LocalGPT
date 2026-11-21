@@ -1,14 +1,25 @@
 import { useEffect, useState } from 'react';
-import { Brain, RotateCcw, Save, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { Brain, FolderSync, RotateCcw, Save, SlidersHorizontal, Sparkles } from 'lucide-react';
 
 const defaults = {
   enable_thinking: false,
-  reasoning_budget: 8192
+  reasoning_budget: 8192,
+  obsidian_api_address: 'https://127.0.0.1:27124',
+  obsidian_api_key: '',
+  obsidian_verify_tls: true,
+  obsidian_ca_path: '',
+  obsidian_allowed_folder: 'BuddyAI/',
+  obsidian_display_name: '',
+  obsidian_allow_read: true,
+  obsidian_allow_write: true,
+  obsidian_allow_delete: false
 };
 
 export default function SettingsPanel({ settings, onUpdateSettings, apiUrl }) {
   const [localSettings, setLocalSettings] = useState({ ...defaults, ...settings });
   const [saved, setSaved] = useState(false);
+  const [obsidianStatus, setObsidianStatus] = useState('idle');
+  const [obsidianMessage, setObsidianMessage] = useState('');
 
   useEffect(() => {
     setLocalSettings({ ...defaults, ...settings });
@@ -37,6 +48,32 @@ export default function SettingsPanel({ settings, onUpdateSettings, apiUrl }) {
 
   const handleReset = () => {
     setLocalSettings({ ...defaults });
+  };
+
+  const testObsidian = async () => {
+    setObsidianStatus('checking');
+    setObsidianMessage('');
+    try {
+      const response = await fetch(`${apiUrl}/obsidian/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_address: localSettings.obsidian_api_address,
+          api_key: localSettings.obsidian_api_key,
+          verify_tls: localSettings.obsidian_verify_tls,
+          ca_path: localSettings.obsidian_ca_path
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Connection failed');
+      setObsidianStatus(data.connected ? 'connected' : 'error');
+      setObsidianMessage(data.connected
+        ? `Connected${localSettings.obsidian_display_name ? ` to ${localSettings.obsidian_display_name}` : ''}`
+        : 'The API key was not accepted');
+    } catch (error) {
+      setObsidianStatus('error');
+      setObsidianMessage(error.message);
+    }
   };
 
   return (
@@ -112,6 +149,109 @@ export default function SettingsPanel({ settings, onUpdateSettings, apiUrl }) {
                   </span>
                 </div>
               </div>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/[0.08] bg-[#07100f]/72 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl border border-[#28ead8]/25 bg-[#20dcca]/10 text-[#72fff0]">
+                <FolderSync className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Obsidian</h3>
+                <p className="text-sm text-[#819690]">Connect to the Local REST API with MCP plugin</p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="text-sm text-[#b9c9c5]">
+                API address
+                <input
+                  value={localSettings.obsidian_api_address}
+                  onChange={(e) => setLocalSettings({ ...localSettings, obsidian_api_address: e.target.value })}
+                  className="mt-2 w-full rounded-xl border border-white/[0.08] bg-[#0b1716] px-3 py-2.5 text-sm text-white outline-none focus:border-[#28ead8]/35"
+                  placeholder="https://127.0.0.1:27124"
+                />
+              </label>
+              <label className="text-sm text-[#b9c9c5]">
+                API key
+                <input
+                  type="password"
+                  value={localSettings.obsidian_api_key}
+                  onChange={(e) => setLocalSettings({ ...localSettings, obsidian_api_key: e.target.value })}
+                  className="mt-2 w-full rounded-xl border border-white/[0.08] bg-[#0b1716] px-3 py-2.5 text-sm text-white outline-none focus:border-[#28ead8]/35"
+                  placeholder="Paste the plugin API key"
+                />
+              </label>
+              <label className="text-sm text-[#b9c9c5]">
+                Certificate authority path
+                <input
+                  value={localSettings.obsidian_ca_path}
+                  onChange={(e) => setLocalSettings({ ...localSettings, obsidian_ca_path: e.target.value })}
+                  className="mt-2 w-full rounded-xl border border-white/[0.08] bg-[#0b1716] px-3 py-2.5 text-sm text-white outline-none focus:border-[#28ead8]/35"
+                  placeholder="/path/to/obsidian-local-rest-api.crt"
+                />
+              </label>
+              <label className="text-sm text-[#b9c9c5]">
+                Allowed write folder
+                <input
+                  value={localSettings.obsidian_allowed_folder}
+                  onChange={(e) => setLocalSettings({ ...localSettings, obsidian_allowed_folder: e.target.value })}
+                  className="mt-2 w-full rounded-xl border border-white/[0.08] bg-[#0b1716] px-3 py-2.5 text-sm text-white outline-none focus:border-[#28ead8]/35"
+                  placeholder="BuddyAI/"
+                />
+              </label>
+              <label className="text-sm text-[#b9c9c5]">
+                Vault display name
+                <input
+                  value={localSettings.obsidian_display_name}
+                  onChange={(e) => setLocalSettings({ ...localSettings, obsidian_display_name: e.target.value })}
+                  className="mt-2 w-full rounded-xl border border-white/[0.08] bg-[#0b1716] px-3 py-2.5 text-sm text-white outline-none focus:border-[#28ead8]/35"
+                  placeholder="My vault"
+                />
+              </label>
+              <label className="mt-6 flex items-center gap-3 text-sm text-[#b9c9c5]">
+                <input
+                  type="checkbox"
+                  checked={Boolean(localSettings.obsidian_verify_tls)}
+                  onChange={(e) => setLocalSettings({ ...localSettings, obsidian_verify_tls: e.target.checked })}
+                  className="h-4 w-4 accent-[#20dcca]"
+                />
+                Verify HTTPS certificate
+              </label>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
+              {[
+                ['obsidian_allow_read', 'Search and read'],
+                ['obsidian_allow_write', 'Create and edit'],
+                ['obsidian_allow_delete', 'Delete (separate confirmation)']
+              ].map(([field, label]) => (
+                <label key={field} className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-[#0b1716] px-3 py-3 text-sm text-[#b9c9c5]">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(localSettings[field])}
+                    onChange={(e) => setLocalSettings({ ...localSettings, [field]: e.target.checked })}
+                    className="h-4 w-4 accent-[#20dcca]"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={testObsidian}
+                className="rounded-xl border border-[#28ead8]/20 bg-[#20dcca]/10 px-4 py-2.5 text-sm font-semibold text-[#8ffcf0] transition hover:bg-[#20dcca]/16"
+              >
+                {obsidianStatus === 'checking' ? 'Checking...' : 'Test connection'}
+              </button>
+              {obsidianMessage && (
+                <span className={`text-sm ${obsidianStatus === 'connected' ? 'text-emerald-300' : 'text-rose-300'}`}>
+                  {obsidianMessage}
+                </span>
+              )}
             </div>
           </section>
 

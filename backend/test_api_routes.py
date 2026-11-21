@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import AsyncMock, patch
 
+import httpx
 from fastapi.testclient import TestClient
 
 from main import app
@@ -54,6 +55,20 @@ class APIRouteTest(unittest.TestCase):
 
         response = self.client.post("/settings", json=settings)
         self.assertIn(response.status_code, (200, 422))
+
+    @patch("app.api.obsidian.ObsidianService")
+    def test_execute_returns_controlled_error_for_httpx_failure(self, mock_service):
+        mock_service.return_value.execute = AsyncMock(
+            side_effect=httpx.ConnectError("Obsidian is unavailable")
+        )
+
+        response = self.client.post(
+            "/obsidian/execute",
+            json={"action": "open", "path": "BuddyAI/Test.md"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Obsidian is unavailable", response.json()["detail"])
 
 
 if __name__ == "__main__":

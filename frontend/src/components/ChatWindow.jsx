@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Aurora from './Aurora';
 import MessageBubble from './MessageBubble';
+import ObsidianActionModal from './ObsidianActionModal';
 import {
   AlertCircle,
   ArrowUp,
@@ -12,6 +13,7 @@ import {
   Cpu,
   Database,
   FileText,
+  FolderSync,
   Route,
   Send,
   Sparkles,
@@ -45,10 +47,10 @@ export default function ChatWindow({
   onUpdateLastMessage,
   onClearChat,
   selectedModel,
-  useRouter,
+  useRouter = false,
   models,
   onSelectModel,
-  onToggleRouter,
+  onToggleRouter = () => {},
   apiUrl,
   documents,
   selectedDocumentIds,
@@ -59,6 +61,7 @@ export default function ChatWindow({
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState('');
   const [showSources, setShowSources] = useState(false);
+  const [showObsidian, setShowObsidian] = useState(false);
   const messagesContainerRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -333,6 +336,7 @@ export default function ChatWindow({
               selectedDocumentIds={selectedDocumentIds}
               useRag={useRag}
               onToggleRag={onToggleRag}
+              onOpenObsidian={() => setShowObsidian(true)}
               large
             />
 
@@ -419,9 +423,25 @@ export default function ChatWindow({
               selectedDocumentIds={selectedDocumentIds}
               useRag={useRag}
               onToggleRag={onToggleRag}
+              onOpenObsidian={() => setShowObsidian(true)}
             />
           </div>
         </footer>
+      )}
+      {showObsidian && (
+        <ObsidianActionModal
+          apiUrl={apiUrl}
+          initialContent={input}
+          onClose={() => setShowObsidian(false)}
+          onComplete={(message) => {
+            onAddMessage(conversation.id, {
+              role: 'assistant',
+              content: message,
+              timestamp: new Date()
+            });
+            setShowObsidian(false);
+          }}
+        />
       )}
     </main>
   );
@@ -443,6 +463,7 @@ function Composer({
   selectedDocumentIds,
   useRag,
   onToggleRag,
+  onOpenObsidian,
   large = false
 }) {
   const selectedReadyCount = selectedDocumentIds.filter((id) =>
@@ -508,6 +529,14 @@ function Composer({
                 {selectedReadyCount}
               </span>
             )}
+          </button>
+          <button
+            type="button"
+            onClick={onOpenObsidian}
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 text-sm text-[#8da19c] transition hover:border-[#28ead8]/25 hover:text-[#8ffcf0]"
+          >
+            <FolderSync className="h-3.5 w-3.5" />
+            Obsidian
           </button>
         </div>
         <button

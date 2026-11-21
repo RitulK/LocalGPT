@@ -25,6 +25,7 @@ class AppStructureTest(unittest.TestCase):
             "settings.py",
             "health.py",
             "deps.py",
+            "obsidian.py",
         }
 
         self.assertTrue(expected.issubset({path.name for path in api_dir.iterdir()}))

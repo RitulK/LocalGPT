@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import database
-from app.api import chat, conversations, documents, health, memories, models, settings
+from app.api import chat, conversations, documents, health, memories, models, obsidian, settings
 from app.core.logging import logging_middleware
 from app.core.limiter import limiter, RateLimitExceeded, _rate_limit_exceeded_handler
 from app.services.runtime import rag_service
@@ -44,6 +44,7 @@ def create_app() -> FastAPI:
         chat.router,
         settings.router,
         memories.router,
+        obsidian.router,
     ):
         app.include_router(router)
     return app

@@ -20,6 +20,37 @@ class ChatRequest(BaseModel):
 class Settings(BaseModel):
     enable_thinking: bool = False
     reasoning_budget: int = 8192
+    obsidian_api_address: str = "https://127.0.0.1:27124"
+    obsidian_api_key: str = ""
+    obsidian_verify_tls: bool = True
+    obsidian_ca_path: str = ""
+    obsidian_allowed_folder: str = "BuddyAI/"
+    obsidian_display_name: str = ""
+    obsidian_allow_read: bool = True
+    obsidian_allow_write: bool = True
+    obsidian_allow_delete: bool = False
+
+
+class ObsidianActionRequest(BaseModel):
+    action: Literal["search", "open", "create", "append", "edit", "replace", "delete"]
+    path: Optional[str] = None
+    section: Optional[str] = None
+    content: Optional[str] = None
+    query: Optional[str] = None
+    reason: Optional[str] = None
+    if_match: Optional[str] = None
+
+
+class ObsidianSearchRequest(BaseModel):
+    query: str
+    max_results: int = 20
+
+
+class ObsidianConnectionTestRequest(BaseModel):
+    api_address: Optional[str] = None
+    api_key: Optional[str] = None
+    verify_tls: bool = True
+    ca_path: str = ""
 
 
 class ConversationCreate(BaseModel):
