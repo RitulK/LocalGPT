@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Copy, Check, User, Bot, Brain, GitBranch } from 'lucide-react';
+import { Copy, Check, User, Bot } from 'lucide-react';
 
 const normalizeMarkdownTables = (content) => (
   content
@@ -11,19 +11,8 @@ const normalizeMarkdownTables = (content) => (
     .replace(/(\|[^\n|]+(?:\|[^\n|]+)+\|?)\s+(\|?\s*:?-{3,}:?\s*\|)/g, '$1\n$2')
 );
 
-export default function MessageBubble({ message, onSaveMessage, onSaveThread }) {
+export default function MessageBubble({ message }) {
   const [copied, setCopied] = useState(false);
-  const [savingMemory, setSavingMemory] = useState(false);
-  const [savingThread, setSavingThread] = useState(false);
-
-  const runSave = async (handler, value, setSaving) => {
-    setSaving(true);
-    try {
-      await handler(value);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -32,9 +21,6 @@ export default function MessageBubble({ message, onSaveMessage, onSaveThread }) 
   };
 
   const isUser = message.role === 'user';
-  const timestamp = message.timestamp instanceof Date && !Number.isNaN(message.timestamp.getTime())
-    ? message.timestamp
-    : null;
 
   return (
     <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} group animate-in fade-in slide-in-from-bottom-4 duration-500`}>
@@ -51,7 +37,7 @@ export default function MessageBubble({ message, onSaveMessage, onSaveThread }) 
             <span>{message.model}</span>
             {message.isStreaming && (
               <span className="flex items-center gap-1">
-                <span className="animate-pulse">•</span>
+                <span className="animate-pulse">●</span>
                 Streaming...
               </span>
             )}
@@ -71,11 +57,6 @@ export default function MessageBubble({ message, onSaveMessage, onSaveThread }) 
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
             <div className="markdown-content prose prose-invert max-w-none">
-              {message.toolStatus && (
-                <div className="mb-2 text-xs text-[#8ffcf0]">
-                  {message.toolStatus}
-                </div>
-              )}
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
@@ -126,55 +107,29 @@ export default function MessageBubble({ message, onSaveMessage, onSaveThread }) 
           )}
         </div>
 
-        {/* Action bar for assistant messages */}
+        {/* Copy button for assistant messages */}
         {!isUser && message.content && !message.isStreaming && (
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => copyToClipboard(message.content)}
-              className="text-[10px] text-[#667b76] hover:text-[#8ffcf0] flex items-center gap-1 transition"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-3 h-3 text-emerald-400" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3 h-3" />
-                  Copy
-                </>
-              )}
-            </button>
-
-            {onSaveMessage && (
-              <button
-                onClick={() => runSave(onSaveMessage, message, setSavingMemory)}
-                disabled={savingMemory || savingThread}
-                className="text-[10px] text-[#667b76] hover:text-[#8ffcf0] flex items-center gap-1 transition disabled:cursor-wait disabled:opacity-60"
-                title="Save this response as a Memory Node"
-              >
-                <Brain className="w-3 h-3 text-[#20dcca]" />
-                {savingMemory ? 'Naming and saving...' : 'Save to Memory'}
-              </button>
+          <button
+            onClick={() => copyToClipboard(message.content)}
+            className="mt-2 text-[10px] text-[#667b76] hover:text-[#8ffcf0] flex items-center gap-1 transition"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3 h-3" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="w-3 h-3" />
+                Copy response
+              </>
             )}
-
-            {onSaveThread && message.id && (
-              <button
-                onClick={() => runSave(onSaveThread, message.id, setSavingThread)}
-                disabled={savingMemory || savingThread}
-                className="text-[10px] text-[#667b76] hover:text-[#8ffcf0] flex items-center gap-1 transition disabled:cursor-wait disabled:opacity-60"
-                title="Save conversation thread up to this response"
-              >
-                <GitBranch className="w-3 h-3 text-emerald-400" />
-                {savingThread ? 'Naming and saving...' : 'Save thread up to here'}
-              </button>
-            )}
-          </div>
+          </button>
         )}
 
         {/* Timestamp */}
         <div className="text-[10px] text-[#536560] mt-1">
-          {timestamp ? timestamp.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}
+          {message.timestamp?.toLocaleTimeString()}
         </div>
       </div>
 
