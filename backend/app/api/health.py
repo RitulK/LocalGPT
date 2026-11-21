@@ -7,7 +7,7 @@ router = APIRouter()
 
 @router.get("/")
 async def root():
-    return {"message": "LocalGPT API - Running", "status": "online"}
+    return {"message": "Buddyai API - Running", "status": "online"}
 
 
 @router.get("/health")

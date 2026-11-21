@@ -50,7 +50,7 @@ export default function SettingsPanel({ settings, onUpdateSettings, apiUrl }) {
           <div>
             <h2 className="text-4xl font-semibold tracking-[-0.03em] text-white">Settings</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8da19c]">
-              Configure model inference and workspace parameters for LocalGPT.
+              Configure model inference and workspace parameters for Buddyai.
             </p>
           </div>
         </div>

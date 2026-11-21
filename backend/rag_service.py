@@ -15,7 +15,7 @@ RETRIEVAL_LIMIT = settings.RAG_RETRIEVAL_LIMIT
 
 
 class RAGService:
-    """Document ingestion and retrieval for LocalGPT's knowledge base."""
+    """Document ingestion and retrieval for Buddyai's knowledge base."""
 
     def __init__(
         self,

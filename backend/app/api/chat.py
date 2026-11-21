@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 
 from app.core.limiter import limiter
 
@@ -12,7 +12,7 @@ chat_service = ChatService()
 
 @router.post("/chat")
 @limiter.limit("60/minute")
-async def chat(request: Request, chat_request: ChatRequest):
+async def chat(request: Request, response: Response, chat_request: ChatRequest):
     try:
         chat_service.validate_request(chat_request, chat_request.conversation_id)
         stream = chat_service.stream_chat(chat_request, chat_request.conversation_id)

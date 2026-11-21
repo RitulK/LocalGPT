@@ -178,10 +178,6 @@ function App() {
   };
 
   const createNewConversation = async () => {
-    if (currentConversation?.messages?.length === 0) {
-      return;
-    }
-
     try {
       const response = await fetch(`${API_URL}/conversations`, {
         method: 'POST',
@@ -194,6 +190,7 @@ function App() {
       const newConv = hydrateConversation(data.conversation);
       setConversations(prev => [newConv, ...prev]);
       setCurrentConversationId(newConv.id);
+      setActiveTab('chat');
     } catch (error) {
       console.error('Failed to create conversation:', error);
       const newId = Math.max(...conversations.map(c => c.id), 0) + 1;
@@ -205,6 +202,7 @@ function App() {
       };
       setConversations([...conversations, newConv]);
       setCurrentConversationId(newId);
+      setActiveTab('chat');
     }
   };
 
@@ -294,7 +292,10 @@ function App() {
         <Sidebar
           conversations={conversations}
           currentConversationId={currentConversationId}
-          onSelectConversation={setCurrentConversationId}
+          onSelectConversation={(conversationId) => {
+            setCurrentConversationId(conversationId);
+            setActiveTab('chat');
+          }}
           onNewConversation={createNewConversation}
           onDeleteConversation={deleteConversation}
           models={models}

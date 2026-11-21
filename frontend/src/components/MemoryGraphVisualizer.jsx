@@ -321,7 +321,7 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
         ctx.shadowBlur = 0;
         ctx.fillStyle = isSelected ? '#ffffff' : '#cbdad6';
         ctx.font = isSelected ? '600 12px system-ui, sans-serif' : '500 11px system-ui, sans-serif';
-        const titleText = (node.title || node.id).slice(0, 24) + ((node.title || '').length > 24 ? '…' : '');
+        const titleText = (node.title || node.id).slice(0, 24) + ((node.title || '').length > 24 ? '...' : '');
         ctx.fillText(titleText, node.x, node.y + node.radius + 15);
 
         ctx.restore();
@@ -639,7 +639,7 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
               </button>
             </div>
             {isSavingConnection && (
-              <div className="mt-3 text-xs text-[#8ffcf0]">Saving link…</div>
+              <div className="mt-3 text-xs text-[#8ffcf0]">Saving link...</div>
             )}
           </div>
         )}
@@ -769,7 +769,7 @@ export default function MemoryGraphVisualizer({ apiUrl, onRefreshCount }) {
                       >
                         <div className="min-w-0 flex-1">
                           <span className="text-[#8ffcf0] font-mono text-[10px]">
-                            {isOutgoing ? `→ ${edge.relation} →` : `← ${edge.relation} ←`}
+                            {isOutgoing ? edge.relation : edge.relation}
                           </span>
                           <button
                             onClick={() => otherNode && setSelectedNode(otherNode)}

@@ -342,9 +342,9 @@ function StatCard({ icon: Icon, label, value }) {
 
 function ProcessingSteps({ status, chunkCount }) {
   const steps = [
-    { label: 'Extracting', key: 'extracting', icon: '📄' },
-    { label: 'Chunking', key: 'chunking', icon: '✂️' },
-    { label: 'Embedding', key: 'embedding', icon: '🔢' }
+    { label: 'Extracting', key: 'extracting' },
+    { label: 'Chunking', key: 'chunking' },
+    { label: 'Embedding', key: 'embedding' }
   ];
 
   const isComplete = status === 'ready' || status === 'failed';
@@ -368,7 +368,7 @@ function ProcessingSteps({ status, chunkCount }) {
               {isIndexing && idx === 0 ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : isComplete || (isIndexing && idx < 2) ? (
-                '✓'
+                <Check className="h-3 w-3" />
               ) : (
                 '-'
               )}

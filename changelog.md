@@ -4,6 +4,19 @@ All notable repository changes are recorded here, newest first.
 
 ## 2026-11-21
 
+### Buddyai UI, navigation, and knowledge-base fixes
+
+- Renamed the application from LocalGPT to Buddyai across the frontend, API title, health response, and tool descriptions.
+- Fixed New Chat and existing-conversation navigation from every sidebar tab.
+- Added a collapsible sidebar and removed landing-page suggestion cards and decorative copy around the centered input.
+- Kept auroras visible after conversations begin at reduced brightness.
+- Moved TinyFish next to Knowledge in the composer and removed emoji characters from the UI.
+- Fixed `/documents` HTTP 500 failures caused by SlowAPI response-header injection and added startup recovery for pending or indexing documents.
+- Live verification: old pending PDFs recovered to ready, a new text upload changed from pending to ready, Ollama remained healthy, and all 15 cross-browser tests passed.
+
+
+## 2026-11-21
+
 ### Startup and Ollama remediation
 
 - Updated [`start.sh`](start.sh) to explicitly use `backend/venv/bin/python`, verify Ollama and backend readiness, start Ollama when absent, and surface startup logs instead of continuing with dead services.

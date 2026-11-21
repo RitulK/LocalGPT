@@ -51,7 +51,7 @@ export default function MessageBubble({ message, onSaveMessage, onSaveThread }) 
             <span>{message.model}</span>
             {message.isStreaming && (
               <span className="flex items-center gap-1">
-                <span className="animate-pulse">●</span>
+                <span className="animate-pulse">•</span>
                 Streaming...
               </span>
             )}
@@ -154,7 +154,7 @@ export default function MessageBubble({ message, onSaveMessage, onSaveThread }) 
                 title="Save this response as a Memory Node"
               >
                 <Brain className="w-3 h-3 text-[#20dcca]" />
-                {savingMemory ? 'Naming and saving…' : 'Save to Memory'}
+                {savingMemory ? 'Naming and saving...' : 'Save to Memory'}
               </button>
             )}
 
@@ -166,7 +166,7 @@ export default function MessageBubble({ message, onSaveMessage, onSaveThread }) 
                 title="Save conversation thread up to this response"
               >
                 <GitBranch className="w-3 h-3 text-emerald-400" />
-                {savingThread ? 'Naming and saving…' : 'Save thread up to here'}
+                {savingThread ? 'Naming and saving...' : 'Save thread up to here'}
               </button>
             )}
           </div>

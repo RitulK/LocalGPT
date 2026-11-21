@@ -1,1 +1,1 @@
-"""LocalGPT application package."""
+"""Buddyai application package."""

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import asyncio
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,18 +9,21 @@ from app.api import chat, conversations, documents, health, memories, models, se
 from app.core.logging import logging_middleware
 from app.core.limiter import limiter, RateLimitExceeded, _rate_limit_exceeded_handler
 from app.services.runtime import rag_service
+from app.services.document_service import reindex_pending_documents
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     database.init_db()
     rag_service.ensure_storage()
+    recovery_task = asyncio.create_task(reindex_pending_documents())
     yield
+    recovery_task.cancel()
 
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="LocalGPT API", lifespan=lifespan)
+    app = FastAPI(title="Buddyai API", lifespan=lifespan)
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

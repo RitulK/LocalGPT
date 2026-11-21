@@ -19,6 +19,16 @@ async def upload_document(file, background_tasks):
 
 
 
+async def reindex_pending_documents():
+    for document in list_documents():
+        if document["status"] in {"pending", "indexing"}:
+            try:
+                await rag_service.index_document(document["id"], llm_gateway)
+            except Exception:
+                # index_document records the specific failure on the document.
+                pass
+
+
 def get_document(document_id: int):
     with get_connection() as conn:
         return document_repo.get(conn, document_id)

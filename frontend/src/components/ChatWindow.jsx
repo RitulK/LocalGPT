@@ -8,7 +8,6 @@ import {
   Brain,
   Check,
   ChevronDown,
-  Code2,
   Cpu,
   Database,
   FileText,
@@ -17,24 +16,6 @@ import {
   Trash2,
   X
 } from 'lucide-react';
-
-const suggestions = [
-  {
-    icon: Code2,
-    title: 'Debug code',
-    text: 'Paste an error, stack trace, or function to improve.'
-  },
-  {
-    icon: Brain,
-    title: 'Think through',
-    text: 'Break down a plan, tradeoff, or technical decision.'
-  },
-  {
-    icon: FileText,
-    title: 'Write better',
-    text: 'Draft docs, emails, summaries, and project notes.'
-  }
-];
 
 const MAX_CONTEXT_MESSAGES = 6;
 
@@ -307,8 +288,7 @@ export default function ChatWindow({
 
   return (
     <main className="relative flex h-full flex-1 flex-col overflow-hidden">
-      {!hasMessages && (
-        <div className="pointer-events-none absolute inset-0 z-0 opacity-90">
+      <div className={`pointer-events-none absolute inset-0 z-0 transition-opacity duration-500 ${hasMessages ? 'opacity-20' : 'opacity-90'}`}>
           <Aurora
             colorStops={['#24f0df', '#7cff67', '#5227FF']}
             blend={0.55}
@@ -316,7 +296,6 @@ export default function ChatWindow({
             speed={0.8}
           />
         </div>
-      )}
 
       <header className="relative z-10 flex h-16 items-center justify-between border-b border-white/[0.06] bg-[#07100f]/45 px-8 backdrop-blur-xl">
         <div>
@@ -364,38 +343,11 @@ export default function ChatWindow({
         <section ref={messagesContainerRef} className="relative z-10 flex-1 overflow-y-auto px-6">
         {!hasMessages ? (
           <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col justify-center py-10">
-            <div className="mb-8 max-w-3xl">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#28ead8]/20 bg-[#20dcca]/10 px-3 py-1.5 text-xs text-[#8ffcf0]">
-                <Sparkles className="h-3.5 w-3.5" />
-                Local models, private memory, streaming responses
-              </div>
-              <h1 className="text-5xl font-semibold tracking-[-0.04em] text-white md:text-7xl">
-                How can I help?
-              </h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-[#9fb1ad]">
-                Ask a question, debug code, compare models, or continue building your local AI workspace.
-              </p>
-            </div>
+            <h1 className="mb-7 text-center text-5xl font-semibold tracking-[-0.04em] text-white md:text-7xl">
+              How can I help?
+            </h1>
 
-            <div className="mb-6 grid gap-3 md:grid-cols-3">
-              {suggestions.map((suggestion) => {
-                const Icon = suggestion.icon;
-                return (
-                  <button
-                    key={suggestion.title}
-                    onClick={() => setInput(suggestion.text)}
-                    className="group rounded-2xl border border-white/[0.08] bg-[#07100f]/60 p-4 text-left shadow-[0_20px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl transition hover:border-[#28ead8]/25 hover:bg-[#102421]/80"
-                  >
-                    <div className="mb-4 grid h-9 w-9 place-items-center rounded-xl bg-[#20dcca]/10 text-[#7ffff0] transition group-hover:bg-[#20dcca]/16">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div className="text-sm font-semibold text-white">{suggestion.title}</div>
-                    <div className="mt-1 text-sm leading-5 text-[#819690]">{suggestion.text}</div>
-                  </button>
-                );
-              })}
-            </div>
-
+            <div className="mx-auto w-full max-w-3xl">
             <Composer
               input={input}
               setInput={setInput}
@@ -422,6 +374,7 @@ export default function ChatWindow({
                 <span>No Ollama models found. Run <code className="rounded bg-black/35 px-1.5 py-0.5">ollama pull llama3.2</code>.</span>
               </div>
             )}
+            </div>
           </div>
         ) : (
           <div className="mx-auto max-w-5xl space-y-6 py-8">
@@ -577,24 +530,6 @@ function Composer({
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => onToggleTinyfish(!tinyfishEnabled)}
-        disabled={isStreaming}
-        className={`mb-2 inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
-          tinyfishEnabled
-            ? 'border-sky-300/30 bg-sky-400/15 text-sky-200'
-            : 'border-white/[0.08] bg-white/[0.035] text-[#8da19c]'
-        }`}
-        title="Allow TinyFish live web tools for the next messages"
-      >
-        <Sparkles className="h-3.5 w-3.5" />
-        TinyFish
-        <span className="text-[10px] uppercase tracking-wide">
-          {tinyfishEnabled ? 'On' : 'Off'}
-        </span>
-      </button>
-
       <textarea
         ref={textareaRef}
         value={input}
@@ -639,6 +574,23 @@ function Composer({
                 {selectedReadyCount}
               </span>
             )}
+          </button>
+          <button
+            type="button"
+            onClick={() => onToggleTinyfish(!tinyfishEnabled)}
+            disabled={isStreaming}
+            className={`inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              tinyfishEnabled
+                ? 'border-sky-300/30 bg-sky-400/15 text-sky-200'
+                : 'border-white/[0.08] bg-white/[0.035] text-[#8da19c]'
+            }`}
+            title="Allow TinyFish live web tools for the next messages"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            TinyFish
+            <span className="text-[10px] uppercase tracking-wide">
+              {tinyfishEnabled ? 'On' : 'Off'}
+            </span>
           </button>
         </div>
         <button
