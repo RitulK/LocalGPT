@@ -1,0 +1,73 @@
+Failed to send telemetry event ClientStartEvent: capture() takes 1 positional argument but 3 were given
+Failed to send telemetry event ClientCreateCollectionEvent: capture() takes 1 positional argument but 3 were given
+Failed to send telemetry event ClientCreateCollectionEvent: capture() takes 1 positional argument but 3 were given
+INFO:     Started server process [3282]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+{"path": "/health", "method": "GET", "status": 200, "latency_ms": 11.51, "event": "request_completed", "request_id": "33fc4fe2-f28a-4c1a-a7a4-9fad5444eaa4", "level": "info", "timestamp": "2026-11-22T19:30:44.510148Z"}
+INFO:     127.0.0.1:49663 - "GET /health HTTP/1.1" 200 OK
+HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+{"path": "/health", "method": "GET", "status": 200, "latency_ms": 12.81, "event": "request_completed", "request_id": "62e96c02-f069-41bf-84c7-f4a7fd2f7555", "level": "info", "timestamp": "2026-11-22T19:30:44.532291Z"}
+INFO:     127.0.0.1:49667 - "GET /health HTTP/1.1" 200 OK
+{"path": "/conversations", "method": "GET", "status": 200, "latency_ms": 13.03, "event": "request_completed", "request_id": "02dcd2fb-456b-4d01-b8ba-73f8049d2309", "level": "info", "timestamp": "2026-11-22T19:31:27.247439Z"}
+INFO:     127.0.0.1:49692 - "GET /conversations HTTP/1.1" 200 OK
+{"path": "/settings", "method": "GET", "status": 200, "latency_ms": 3.07, "event": "request_completed", "request_id": "ab63f039-9c2a-4a29-a2d5-f1dba1b7c303", "level": "info", "timestamp": "2026-11-22T19:31:27.257455Z"}
+INFO:     127.0.0.1:49695 - "GET /settings HTTP/1.1" 200 OK
+{"path": "/documents", "method": "GET", "status": 200, "latency_ms": 4.22, "event": "request_completed", "request_id": "eba71c83-fac8-4fb2-a263-91d5c031adcc", "level": "info", "timestamp": "2026-11-22T19:31:27.260091Z"}
+INFO:     127.0.0.1:49696 - "GET /documents HTTP/1.1" 200 OK
+{"path": "/conversations", "method": "GET", "status": 200, "latency_ms": 3.19, "event": "request_completed", "request_id": "9a73b2a0-6e57-4d93-99f5-6f31999cba31", "level": "info", "timestamp": "2026-11-22T19:31:27.260490Z"}
+INFO:     127.0.0.1:49692 - "GET /conversations HTTP/1.1" 200 OK
+{"path": "/memories/graph", "method": "GET", "status": 200, "latency_ms": 3.28, "event": "request_completed", "request_id": "f4c83149-4cb6-4eea-a5e2-d638fb5fb816", "level": "info", "timestamp": "2026-11-22T19:31:27.260656Z"}
+INFO:     127.0.0.1:49697 - "GET /memories/graph HTTP/1.1" 200 OK
+{"path": "/settings", "method": "GET", "status": 200, "latency_ms": 12.03, "event": "request_completed", "request_id": "000dda07-d164-4949-8609-ae1edcac181e", "level": "info", "timestamp": "2026-11-22T19:31:27.278200Z"}
+INFO:     127.0.0.1:49697 - "GET /settings HTTP/1.1" 200 OK
+{"path": "/documents", "method": "GET", "status": 200, "latency_ms": 0.78, "event": "request_completed", "request_id": "dc7059fe-597f-4208-80c1-8079f5dbf9fe", "level": "info", "timestamp": "2026-11-22T19:31:27.280128Z"}
+INFO:     127.0.0.1:49697 - "GET /documents HTTP/1.1" 200 OK
+{"path": "/memories/graph", "method": "GET", "status": 200, "latency_ms": 1.04, "event": "request_completed", "request_id": "65cca27f-4789-4438-99cd-db986c969cf5", "level": "info", "timestamp": "2026-11-22T19:31:27.281885Z"}
+INFO:     127.0.0.1:49697 - "GET /memories/graph HTTP/1.1" 200 OK
+HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+{"path": "/models", "method": "GET", "status": 200, "latency_ms": 64.77, "event": "request_completed", "request_id": "34891909-d65e-4fd9-a7d8-5390a6e31901", "level": "info", "timestamp": "2026-11-22T19:31:27.303172Z"}
+INFO:     127.0.0.1:49693 - "GET /models HTTP/1.1" 200 OK
+HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+{"path": "/models", "method": "GET", "status": 200, "latency_ms": 51.37, "event": "request_completed", "request_id": "963facee-01cd-413e-9f95-3d871824bcc9", "level": "info", "timestamp": "2026-11-22T19:31:27.312468Z"}
+INFO:     127.0.0.1:49695 - "GET /models HTTP/1.1" 200 OK
+{"path": "/health", "method": "GET", "status": 200, "latency_ms": 51.89, "event": "request_completed", "request_id": "90acddf5-7f18-4e62-b95c-5aca7aedc6a4", "level": "info", "timestamp": "2026-11-22T19:31:27.318018Z"}
+INFO:     127.0.0.1:49692 - "GET /health HTTP/1.1" 200 OK
+{"path": "/health", "method": "GET", "status": 200, "latency_ms": 35.59, "event": "request_completed", "request_id": "11342ac3-dc90-4ed4-99b2-110a29e68a9d", "level": "info", "timestamp": "2026-11-22T19:31:27.318182Z"}
+INFO:     127.0.0.1:49697 - "GET /health HTTP/1.1" 200 OK
+HTTP Request: GET https://ollama.com/api/tags "HTTP/1.1 200 OK"
+{"path": "/models/catalog", "method": "GET", "status": 200, "latency_ms": 474.4, "event": "request_completed", "request_id": "67c81c06-a22b-4631-9cea-1f60b9fd43e2", "level": "info", "timestamp": "2026-11-22T19:31:27.740500Z"}
+INFO:     127.0.0.1:49696 - "GET /models/catalog HTTP/1.1" 200 OK
+HTTP Request: GET https://ollama.com/api/tags "HTTP/1.1 200 OK"
+{"path": "/models/catalog", "method": "GET", "status": 200, "latency_ms": 1310.74, "event": "request_completed", "request_id": "10555736-5703-4d36-8b87-2bb3e158ea29", "level": "info", "timestamp": "2026-11-22T19:31:28.557909Z"}
+INFO:     127.0.0.1:49694 - "GET /models/catalog HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49715 - "OPTIONS /obsidian/plan HTTP/1.1" 200 OK
+{"path": "/obsidian/plan", "method": "POST", "status": 200, "latency_ms": 7.95, "event": "request_completed", "request_id": "f442eb9a-c979-4ef1-8bf3-e4fbb7a14092", "level": "info", "timestamp": "2026-11-22T19:31:59.070975Z"}
+INFO:     127.0.0.1:49715 - "POST /obsidian/plan HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49715 - "OPTIONS /obsidian/execute HTTP/1.1" 200 OK
+{"path": "/obsidian/execute", "method": "POST", "status": 400, "latency_ms": 16.56, "event": "request_completed", "request_id": "d1e9f16e-05c4-4d94-bccb-b5158f5a19cd", "level": "info", "timestamp": "2026-11-22T19:31:59.093234Z"}
+INFO:     127.0.0.1:49715 - "POST /obsidian/execute HTTP/1.1" 400 Bad Request
+{"path": "/obsidian/plan", "method": "POST", "status": 200, "latency_ms": 3.23, "event": "request_completed", "request_id": "012de0b0-4887-4266-b0ed-213ef2a763cb", "level": "info", "timestamp": "2026-11-22T19:32:06.514082Z"}
+INFO:     127.0.0.1:49718 - "POST /obsidian/plan HTTP/1.1" 200 OK
+{"path": "/obsidian/execute", "method": "POST", "status": 400, "latency_ms": 14.92, "event": "request_completed", "request_id": "f2137ec2-bd52-40da-9dea-3c8291054b09", "level": "info", "timestamp": "2026-11-22T19:32:06.539391Z"}
+INFO:     127.0.0.1:49718 - "POST /obsidian/execute HTTP/1.1" 400 Bad Request
+{"path": "/obsidian/plan", "method": "POST", "status": 200, "latency_ms": 3.3, "event": "request_completed", "request_id": "b439c81b-805e-4aac-8672-7b510786561e", "level": "info", "timestamp": "2026-11-22T19:32:07.303367Z"}
+INFO:     127.0.0.1:49718 - "POST /obsidian/plan HTTP/1.1" 200 OK
+{"path": "/obsidian/execute", "method": "POST", "status": 400, "latency_ms": 14.62, "event": "request_completed", "request_id": "98f57c8f-0dad-403a-946d-b59daecd1f7e", "level": "info", "timestamp": "2026-11-22T19:32:07.322757Z"}
+INFO:     127.0.0.1:49718 - "POST /obsidian/execute HTTP/1.1" 400 Bad Request
+{"path": "/obsidian/plan", "method": "POST", "status": 200, "latency_ms": 4.1, "event": "request_completed", "request_id": "a5048ab1-c6b3-4113-b1f1-ff888e7d9527", "level": "info", "timestamp": "2026-11-22T19:33:55.992606Z"}
+INFO:     127.0.0.1:49728 - "POST /obsidian/plan HTTP/1.1" 200 OK
+{"path": "/obsidian/execute", "method": "POST", "status": 400, "latency_ms": 17.25, "event": "request_completed", "request_id": "b04d8a8c-9a3a-4460-9bab-ab68d2868f87", "level": "info", "timestamp": "2026-11-22T19:34:03.273719Z"}
+INFO:     127.0.0.1:49730 - "POST /obsidian/execute HTTP/1.1" 400 Bad Request
+{"path": "/obsidian/status", "method": "GET", "status": 400, "latency_ms": 7.45, "event": "request_completed", "request_id": "13dbde87-109e-48e6-8308-82f7d0f76312", "level": "info", "timestamp": "2026-11-22T19:35:56.244753Z"}
+INFO:     127.0.0.1:49775 - "GET /obsidian/status HTTP/1.1" 400 Bad Request
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3282]

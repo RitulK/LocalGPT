@@ -78,11 +78,31 @@ class ObsidianService:
             raise ValueError("Obsidian API address is required.")
         if not address.startswith(("https://", "http://")):
             raise ValueError("Obsidian API address must use http:// or https://.")
-        async with httpx.AsyncClient(
-            timeout=8,
-            verify=self._verify_tls(),
-        ) as client:
-            response = await client.get(f"{address}/", headers=self._headers())
+        if not str(self.config.get("obsidian_api_key", "")).strip():
+            raise ValueError(
+                "Obsidian API key is not configured. Install and enable the "
+                "Local REST API with MCP plugin, then copy its API key into Settings."
+            )
+        try:
+            async with httpx.AsyncClient(
+                timeout=8,
+                verify=self._verify_tls(),
+            ) as client:
+                response = await client.get(f"{address}/", headers=self._headers())
+        except httpx.ConnectError as exc:
+            error_text = str(exc)
+            if "CERTIFICATE_VERIFY_FAILED" in error_text or "certificate verify failed" in error_text:
+                raise ValueError(
+                    "Obsidian certificate verification failed. Download and trust the "
+                    "plugin CA at https://127.0.0.1:27124/obsidian-local-rest-api.crt, "
+                    "enter its local file path in Certificate authority path, and test again."
+                ) from exc
+            raise ValueError(
+                "Could not connect to Obsidian. Make sure Obsidian is running and "
+                "the Local REST API with MCP plugin is installed and enabled."
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise ValueError(f"Obsidian connection failed: {exc}") from exc
         if response.status_code >= 400:
             raise ValueError(f"Obsidian connection failed ({response.status_code}).")
         try:
