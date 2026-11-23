@@ -32,7 +32,7 @@ test.describe('LocalGPT interface', () => {
     await expect(page.getByText('Ollama connected')).toBeVisible();
     await expect(page.getByRole('navigation').getByRole('button', { name: 'Knowledge', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Memory Graph' })).toBeVisible();
-    await expect(page.getByText('Debug code', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Debug code', { exact: true })).toBeVisible();
     await expect(page.getByText('Buddyai', { exact: true })).toBeVisible();
   });
 
