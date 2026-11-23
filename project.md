@@ -37,6 +37,8 @@ in [`BACKLOG.md`](BACKLOG.md).
 
 - FastAPI backend with chat, conversation, document, memory, model, settings,
   and health endpoints.
+- Chat-first Obsidian Local REST API integration with settings, vault search/read,
+  model-generated drafts, confirmation, targeted section edits, and gated delete.
 - React/Vite frontend with chat, knowledge-base, memory graph, model, and
   settings views.
 - Ollama, OpenAI-compatible vLLM, NVIDIA, TinyFish web tools, Chroma RAG, and
@@ -51,6 +53,20 @@ in [`BACKLOG.md`](BACKLOG.md).
 - **2026-09-11 — P1-S1:** Added `backend/app/{api,services,domain,infrastructure,core}`,
   moved HTTP routes into routers, and reduced `backend/main.py` to an app
   factory and lifecycle wiring.
+- **2026-11-24 — Obsidian chat-first integration:** Added Obsidian connection
+  settings, a composer tool menu, provider-independent AI proposal generation,
+  editable review cards, REST-only search/read/open, full-note chat rendering,
+  conditional writes, and confirmed delete support. Implementation lives in
+  `backend/app/api/obsidian.py`, `backend/app/services/obsidian_service.py`,
+  `frontend/src/components/ObsidianChatTools.jsx`, and `ChatWindow.jsx`.
+
+  Approved behavior: users select an Obsidian tool in the composer and provide
+  a normal prompt; the selected model generates Markdown or a typed proposal;
+  the proposal is reviewed and edited before confirmation; search and note reads
+  use the Obsidian REST API directly. Search results show excerpts, and reading a
+  note adds its full Markdown to the chat with an Open in Obsidian button.
+  Targeted edits use the heading/section and ETag; replacement and deletion require
+  explicit confirmation, with deletion disabled unless enabled in Settings.
 
 ## Current Status
 

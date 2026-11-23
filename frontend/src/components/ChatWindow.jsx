@@ -1,7 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import Aurora from './Aurora';
 import MessageBubble from './MessageBubble';
-import ObsidianActionModal from './ObsidianActionModal';
+import {
+  ObsidianDraftCard,
+  ObsidianToolMenu,
+  OBSIDIAN_TOOLS
+} from './ObsidianChatTools';
 import {
   AlertCircle,
   ArrowUp,
@@ -61,7 +65,12 @@ export default function ChatWindow({
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState('');
   const [showSources, setShowSources] = useState(false);
-  const [showObsidian, setShowObsidian] = useState(false);
+  const [showObsidianMenu, setShowObsidianMenu] = useState(false);
+  const [obsidianTool, setObsidianTool] = useState(null);
+  const [obsidianTarget, setObsidianTarget] = useState('');
+  const [obsidianSection, setObsidianSection] = useState('');
+  const [obsidianDraft, setObsidianDraft] = useState(null);
+  const [obsidianBusy, setObsidianBusy] = useState(false);
   const messagesContainerRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -125,6 +134,71 @@ export default function ChatWindow({
     setIsStreaming(true);
 
     try {
+      if (obsidianTool) {
+        if (obsidianTool === 'search') {
+          const response = await fetch(`${apiUrl}/obsidian/search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: prompt, max_results: 20 })
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || 'Obsidian search failed');
+          const results = Array.isArray(data.results) ? data.results : [];
+          const markdown = results.length
+            ? results.map((result) => {
+                const path = typeof result === 'string' ? result : result.filename || result.path;
+                const matches = typeof result === 'object' ? result.matches : null;
+                const excerpt = matches?.[0]?.context || result.snippet || '';
+                return `- **${path}**${excerpt ? `\n  ${excerpt}` : ''}`;
+              }).join('\n')
+            : 'No matching notes found.';
+          onUpdateLastMessage(conversation.id, {
+            content: `## Obsidian search results\n\n${markdown}`,
+            isStreaming: false
+          });
+          setObsidianTool(null);
+          setIsStreaming(false);
+          return;
+        }
+
+        if (obsidianTool === 'read') {
+          if (!obsidianTarget.trim()) throw new Error('Enter a note path for the Read/open tool.');
+          const response = await fetch(`${apiUrl}/obsidian/notes/${encodeURIComponent(obsidianTarget.trim()).replace(/%2F/g, '/')}`);
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || 'Could not read the note');
+          onUpdateLastMessage(conversation.id, {
+            content: `# ${obsidianTarget.trim()}\n\n${data.content}`,
+            obsidianOpenPath: data.path,
+            isStreaming: false
+          });
+          setObsidianTool(null);
+          setIsStreaming(false);
+          return;
+        }
+
+        const generationResponse = await fetch(`${apiUrl}/obsidian/generate-proposal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            model: selectedModel,
+            tool: obsidianTool,
+            target_path: obsidianTarget.trim() || null,
+            section: obsidianSection.trim() || null,
+            conversation_history: history
+          })
+        });
+        const generationData = await generationResponse.json();
+        if (!generationResponse.ok) throw new Error(generationData.detail || 'Could not generate an Obsidian proposal');
+        setObsidianDraft(generationData.proposal);
+        onUpdateLastMessage(conversation.id, {
+          content: `Prepared an Obsidian ${generationData.proposal.action} proposal for review below.`,
+          isStreaming: false
+        });
+        setIsStreaming(false);
+        return;
+      }
+
       const response = await fetch(`${apiUrl}/chat`, {
         method: 'POST',
         headers: {
@@ -219,6 +293,35 @@ export default function ChatWindow({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       submitPrompt(input);
+    }
+  };
+
+  const confirmObsidianDraft = async () => {
+    if (!obsidianDraft) return;
+    setObsidianBusy(true);
+    setError('');
+    try {
+      const response = await fetch(`${apiUrl}/obsidian/proposals/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(obsidianDraft)
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Obsidian action failed');
+      onAddMessage(conversation.id, {
+        role: 'assistant',
+        content: `## Obsidian ${obsidianDraft.action} completed\n\n**${obsidianDraft.path}**`,
+        obsidianOpenPath: obsidianDraft.action === 'delete' ? null : obsidianDraft.path,
+        timestamp: new Date()
+      });
+      setObsidianDraft(null);
+      setObsidianTool(null);
+      setObsidianTarget('');
+      setObsidianSection('');
+    } catch (draftError) {
+      setError(draftError.message);
+    } finally {
+      setObsidianBusy(false);
     }
   };
 
@@ -336,9 +439,25 @@ export default function ChatWindow({
               selectedDocumentIds={selectedDocumentIds}
               useRag={useRag}
               onToggleRag={onToggleRag}
-              onOpenObsidian={() => setShowObsidian(true)}
+              showObsidianMenu={showObsidianMenu}
+              setShowObsidianMenu={setShowObsidianMenu}
+              obsidianTool={obsidianTool}
+              setObsidianTool={setObsidianTool}
+              obsidianTarget={obsidianTarget}
+              setObsidianTarget={setObsidianTarget}
+              obsidianSection={obsidianSection}
+              setObsidianSection={setObsidianSection}
               large
             />
+            {obsidianDraft && (
+              <ObsidianDraftCard
+                draft={obsidianDraft}
+                onChangeDraft={setObsidianDraft}
+                onConfirm={confirmObsidianDraft}
+                onCancel={() => setObsidianDraft(null)}
+                busy={obsidianBusy}
+              />
+            )}
 
             {models.length === 0 && (
               <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/8 p-4 text-sm text-amber-100">
@@ -353,6 +472,7 @@ export default function ChatWindow({
               <MessageBubble
                 key={`${conversation.id}-${index}-${message.timestamp?.getTime() || index}`}
                 message={message}
+                apiUrl={apiUrl}
               />
             ))}
           </div>
@@ -423,25 +543,26 @@ export default function ChatWindow({
               selectedDocumentIds={selectedDocumentIds}
               useRag={useRag}
               onToggleRag={onToggleRag}
-              onOpenObsidian={() => setShowObsidian(true)}
+              showObsidianMenu={showObsidianMenu}
+              setShowObsidianMenu={setShowObsidianMenu}
+              obsidianTool={obsidianTool}
+              setObsidianTool={setObsidianTool}
+              obsidianTarget={obsidianTarget}
+              setObsidianTarget={setObsidianTarget}
+              obsidianSection={obsidianSection}
+              setObsidianSection={setObsidianSection}
             />
+            {obsidianDraft && (
+              <ObsidianDraftCard
+                draft={obsidianDraft}
+                onChangeDraft={setObsidianDraft}
+                onConfirm={confirmObsidianDraft}
+                onCancel={() => setObsidianDraft(null)}
+                busy={obsidianBusy}
+              />
+            )}
           </div>
         </footer>
-      )}
-      {showObsidian && (
-        <ObsidianActionModal
-          apiUrl={apiUrl}
-          initialContent={input}
-          onClose={() => setShowObsidian(false)}
-          onComplete={(message) => {
-            onAddMessage(conversation.id, {
-              role: 'assistant',
-              content: message,
-              timestamp: new Date()
-            });
-            setShowObsidian(false);
-          }}
-        />
       )}
     </main>
   );
@@ -463,7 +584,14 @@ function Composer({
   selectedDocumentIds,
   useRag,
   onToggleRag,
-  onOpenObsidian,
+  showObsidianMenu,
+  setShowObsidianMenu,
+  obsidianTool,
+  setObsidianTool,
+  obsidianTarget,
+  setObsidianTarget,
+  obsidianSection,
+  setObsidianSection,
   large = false
 }) {
   const selectedReadyCount = selectedDocumentIds.filter((id) =>
@@ -473,10 +601,46 @@ function Composer({
   return (
     <form
       onSubmit={handleSubmit}
-      className={`rounded-3xl border border-[#28ead8]/18 bg-[#0e2421]/92 shadow-[0_24px_80px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-2xl ${
+      className={`relative rounded-3xl border border-[#28ead8]/18 bg-[#0e2421]/92 shadow-[0_24px_80px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-2xl ${
         large ? 'p-4' : 'p-3'
       }`}
     >
+      <ObsidianToolMenu
+        open={showObsidianMenu}
+        onClose={() => setShowObsidianMenu(false)}
+        onSelect={(tool) => {
+          setObsidianTool(tool);
+          setShowObsidianMenu(false);
+        }}
+      />
+      {obsidianTool && (
+        <div className="mb-3 rounded-xl border border-[#28ead8]/16 bg-[#20dcca]/8 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs font-semibold text-[#8ffcf0]">
+              Obsidian: {OBSIDIAN_TOOLS.find((tool) => tool.id === obsidianTool)?.label}
+            </span>
+            <button type="button" onClick={() => setObsidianTool(null)} className="text-[#91a49f] hover:text-white">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          {obsidianTool !== 'new_note' && obsidianTool !== 'search' && (
+            <input
+              value={obsidianTarget}
+              onChange={(event) => setObsidianTarget(event.target.value)}
+              className="mt-2 w-full rounded-lg border border-white/[0.08] bg-[#07100f] px-3 py-2 text-xs text-white outline-none"
+              placeholder="Note path, for example Projects/Meeting.md"
+            />
+          )}
+          {['append', 'edit'].includes(obsidianTool) && (
+            <input
+              value={obsidianSection}
+              onChange={(event) => setObsidianSection(event.target.value)}
+              className="mt-2 w-full rounded-lg border border-white/[0.08] bg-[#07100f] px-3 py-2 text-xs text-white outline-none"
+              placeholder="Heading/section (optional)"
+            />
+          )}
+        </div>
+      )}
       <textarea
         ref={textareaRef}
         value={input}
@@ -532,7 +696,7 @@ function Composer({
           </button>
           <button
             type="button"
-            onClick={onOpenObsidian}
+            onClick={() => setShowObsidianMenu((open) => !open)}
             className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 text-sm text-[#8da19c] transition hover:border-[#28ead8]/25 hover:text-[#8ffcf0]"
           >
             <FolderSync className="h-3.5 w-3.5" />

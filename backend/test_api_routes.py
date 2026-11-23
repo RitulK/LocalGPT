@@ -70,6 +70,20 @@ class APIRouteTest(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("Obsidian is unavailable", response.json()["detail"])
 
+    @patch("app.api.obsidian.ObsidianService")
+    def test_confirm_proposal_route_executes_action(self, mock_service):
+        mock_service.return_value.execute = AsyncMock(
+            return_value={"action": "create", "created": True, "path": "BuddyAI/Test.md"}
+        )
+
+        response = self.client.post(
+            "/obsidian/proposals/confirm",
+            json={"action": "create", "path": "BuddyAI/Test.md", "content": "# Test"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["created"])
+
 
 if __name__ == "__main__":
     unittest.main()

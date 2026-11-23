@@ -38,6 +38,8 @@
 
 ### 🎯 Smart Features
 - **🤖 Intelligent Model Router** - Automatically selects the best model based on your prompt
+- **🗒️ Chat-first Obsidian actions** - Generate and review notes, search/read vault
+  content, edit sections, and confirm writes or deletion in chat
 - **💬 Real-time Streaming** - Watch responses generate in real-time with SSE
 - **📝 Conversation Management** - Save, switch, and manage multiple conversations
 - **🎨 Modern UI/UX** - Beautiful gradient design with smooth animations

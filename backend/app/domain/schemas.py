@@ -3,6 +3,12 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel
 
 
+class ObsidianToolContext(BaseModel):
+    tool: Literal["new_note", "search", "read", "append", "edit", "replace", "delete"]
+    target_path: Optional[str] = None
+    section: Optional[str] = None
+
+
 class ChatRequest(BaseModel):
     prompt: str
     model: Optional[str] = None
@@ -15,6 +21,7 @@ class ChatRequest(BaseModel):
     memory_node_ids: Optional[List[str]] = None
     # Keep API callers backward compatible; the frontend sends its explicit toggle state.
     tinyfish_enabled: bool = True
+    obsidian_context: Optional[ObsidianToolContext] = None
 
 
 class Settings(BaseModel):
@@ -51,6 +58,15 @@ class ObsidianConnectionTestRequest(BaseModel):
     api_key: Optional[str] = None
     verify_tls: bool = True
     ca_path: str = ""
+
+
+class ObsidianProposalRequest(BaseModel):
+    prompt: str
+    model: Optional[str] = None
+    tool: Literal["new_note", "append", "edit", "replace", "delete"]
+    target_path: Optional[str] = None
+    section: Optional[str] = None
+    conversation_history: Optional[List[dict]] = None
 
 
 class ConversationCreate(BaseModel):

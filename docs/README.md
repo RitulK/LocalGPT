@@ -22,6 +22,7 @@ Welcome to the LocalGPT documentation. Everything you need to understand, run, d
 - [build-complete.md](deployment/build-complete.md) — Complete build summary and verification checklist
 
 ### 🔌 Integrations — extra model backends and UI features
+- [obsidian.md](integrations/obsidian.md) — Chat-first Obsidian search, note reading, AI drafts, and confirmed writes
 - [nvidia-nemotron.md](integrations/nvidia-nemotron.md) — NVIDIA Nemotron 3 Ultra cloud API + extended thinking
 - [nemotron-vllm.md](integrations/nemotron-vllm.md) — Local Nemotron Super 49B via vLLM
 - [vllm-setup-macos.md](integrations/vllm-setup-macos.md) — Option A: run vLLM on macOS host

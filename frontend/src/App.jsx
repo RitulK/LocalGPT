@@ -19,6 +19,7 @@ const hydrateConversation = (conversation) => ({
     content: message.content,
     model: message.model,
     sources: message.sources || [],
+    obsidianOpenPath: message.obsidian_open_path || null,
     timestamp: new Date(message.created_at)
   }))
 });

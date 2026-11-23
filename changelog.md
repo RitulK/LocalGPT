@@ -2,6 +2,26 @@
 
 All notable repository changes are recorded here, newest first.
 
+## 2026-11-24
+
+### Chat-first Obsidian integration
+
+- Replaced the Obsidian action form with composer tool selection for new notes,
+  search, reading/opening, append, section edit, whole-note replace, and delete.
+- Added provider-independent model proposal generation through
+  `POST /obsidian/generate-proposal`.
+- Added editable AI-generated draft cards with confirm and cancel actions.
+- Added REST-only vault search and full-note chat rendering with an Open in
+  Obsidian button.
+- Added confirmed proposal execution through
+  `POST /obsidian/proposals/confirm`.
+- Preserved server-side API-key storage, vault path restrictions, allowed-folder
+  checks, conditional writes, and delete permission gating.
+- Removed the obsolete form modal `ObsidianActionModal.jsx`.
+- Added documentation in
+  `docs/integrations/obsidian.md`.
+- Validation: 51 backend tests passed and the frontend production build passed.
+
 ## 2026-11-21
 
 ### Buddyai UI, navigation, and knowledge-base fixes

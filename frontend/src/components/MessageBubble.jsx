@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Copy, Check, User, Bot } from 'lucide-react';
+import { Copy, Check, User, Bot, ExternalLink } from 'lucide-react';
 
 const normalizeMarkdownTables = (content) => (
   content
@@ -11,7 +11,7 @@ const normalizeMarkdownTables = (content) => (
     .replace(/(\|[^\n|]+(?:\|[^\n|]+)+\|?)\s+(\|?\s*:?-{3,}:?\s*\|)/g, '$1\n$2')
 );
 
-export default function MessageBubble({ message }) {
+export default function MessageBubble({ message, apiUrl }) {
   const [copied, setCopied] = useState(false);
 
   const copyToClipboard = (text) => {
@@ -21,6 +21,14 @@ export default function MessageBubble({ message }) {
   };
 
   const isUser = message.role === 'user';
+  const openInObsidian = async () => {
+    if (!message.obsidianOpenPath) return;
+    await fetch(`${apiUrl}/obsidian/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'open', path: message.obsidianOpenPath })
+    });
+  };
 
   return (
     <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} group animate-in fade-in slide-in-from-bottom-4 duration-500`}>
@@ -124,6 +132,16 @@ export default function MessageBubble({ message }) {
                 Copy response
               </>
             )}
+          </button>
+        )}
+
+        {!isUser && message.obsidianOpenPath && !message.isStreaming && (
+          <button
+            onClick={openInObsidian}
+            className="mt-2 inline-flex items-center gap-2 rounded-lg border border-[#28ead8]/20 bg-[#20dcca]/8 px-2.5 py-1.5 text-[10px] font-semibold text-[#8ffcf0]"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Open in Obsidian
           </button>
         )}
 
