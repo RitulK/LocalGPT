@@ -1,643 +1,221 @@
-# 🤖 LocalGPT Control Center
+# LocalGPT / BuddyAI
 
-<div align="center">
+A private, local-first AI workspace for chat, documents, memory, model
+management, and Obsidian vault integration.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![Python](https://img.shields.io/badge/python-3.12+-green.svg)
-![React](https://img.shields.io/badge/react-18.2-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)
-![License](https://img.shields.io/badge/license-MIT-purple.svg)
+LocalGPT combines FastAPI, React, Ollama, and optional OpenAI-compatible model
+providers in one self-hosted interface. Conversations and uploaded knowledge
+stay on your machine unless you explicitly enable an external integration.
 
-**A modern, full-stack web application for interacting with local LLMs via Ollama**
+## Features
 
-[Features](#-features) • [Architecture](#-architecture) • [Installation](#-installation) • [Usage](#-usage) • [Tech Stack](#-tech-stack)
+- Streaming chat with Ollama and OpenAI-compatible providers
+- Automatic or manually selected model routing
+- Multiple persistent conversations
+- Markdown rendering and code highlighting
+- Knowledge-base upload, indexing, search, and RAG responses
+- Graph-style personal memory with manual chat and thread capture
+- Live web tools through optional TinyFish configuration
+- Local model discovery and installation
+- Obsidian vault search, note reading, AI-generated drafts, and confirmed writes
+- Separate Obsidian permissions for read, create/edit, and delete
+- Server-side Obsidian API-key storage and ETag-based write protection
 
-</div>
+## Obsidian integration
 
----
+Select an Obsidian tool from the chat composer, enter a normal request, and
+review the generated result before it is written to your vault.
 
-## 📸 Preview
+Supported chat tools include:
 
-<div align="center">
+- Add a new note
+- Search the vault
+- Read or open a note
+- Append to a note
+- Edit a heading or section
+- Replace a note
+- Delete a note
 
-### Modern, Beautiful Interface
+Search and note reading use the Obsidian Local REST API directly. Model-assisted
+operations generate an editable draft that BuddyAI validates and executes only
+after confirmation.
 
-![LocalGPT Interface](https://via.placeholder.com/800x450/0a0e17/667eea?text=LocalGPT+Control+Center)
+See [Obsidian integration](docs/integrations/obsidian.md) for setup and
+security details.
 
-*Beautiful gradient design with glass morphism effects and smooth animations*
+## Requirements
 
-</div>
+- macOS, Linux, or Windows with Bash support
+- Python 3.12
+- Node.js and npm
+- Ollama
+- Git
 
----
+For Obsidian support:
 
-## ✨ Features
+- Obsidian
+- The **Local REST API with MCP** community plugin
+- A local plugin API key
 
-<table>
-<tr>
-<td width="50%">
+## Quick start
 
-### 🎯 Smart Features
-- **🤖 Intelligent Model Router** - Automatically selects the best model based on your prompt
-- **🗒️ Chat-first Obsidian actions** - Generate and review notes, search/read vault
-  content, edit sections, and confirm writes or deletion in chat
-- **💬 Real-time Streaming** - Watch responses generate in real-time with SSE
-- **📝 Conversation Management** - Save, switch, and manage multiple conversations
-- **🎨 Modern UI/UX** - Beautiful gradient design with smooth animations
-- **⚡ Fast & Local** - All processing happens on your machine
-
-</td>
-<td width="50%">
-
-### 🛠️ Technical Features
-- **🔄 Hot Module Replacement** - Instant updates during development
-- **📊 Model Management** - View and manage your Ollama models
-- **⚙️ Customizable Settings** - Configure defaults and routing behavior
-- **🌙 Dark Mode** - Eye-friendly interface (default)
-- **📱 Responsive Design** - Works on desktop and tablets
-
-</td>
-</tr>
-</table>
-
----
-
-## 🏗️ Architecture
-
-### System Overview
-
-```mermaid
-graph TB
-    subgraph "Frontend (React + Vite)"
-        A[User Interface] --> B[Chat Window]
-        A --> C[Sidebar]
-        A --> D[Settings Panel]
-        B --> E[Message Bubbles]
-        C --> F[Conversation List]
-    end
-    
-    subgraph "Backend (FastAPI)"
-        G[API Endpoints] --> H[Chat Handler]
-        G --> I[Model Manager]
-        H --> J[Smart Router]
-        H --> K[Ollama Client]
-    end
-    
-    subgraph "Ollama Server"
-        L[LLM Models]
-        M[qwen:4b]
-        N[llama3.2]
-        O[qwen2.5-coder]
-        L --> M
-        L --> N
-        L --> O
-    end
-    
-    A -->|HTTP/SSE| G
-    K -->|API Calls| L
-    J -->|Route Selection| K
-    
-    style A fill:#667eea,stroke:#764ba2,stroke-width:2px,color:#fff
-    style G fill:#4f46e5,stroke:#6366f1,stroke-width:2px,color:#fff
-    style L fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
-```
-
-### Data Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant User
-    participant Frontend
-    participant Backend
-    participant Router
-    participant Ollama
-    
-    User->>Frontend: Types message
-    Frontend->>Backend: POST /chat (SSE stream)
-    Backend->>Router: Analyze prompt
-    Router->>Router: Detect keywords/code
-    Router-->>Backend: Select best model
-    Backend->>Ollama: Stream chat request
-    loop Streaming Response
-        Ollama-->>Backend: Token chunks
-        Backend-->>Frontend: SSE events
-        Frontend-->>User: Display tokens
-    end
-    Ollama-->>Backend: Stream complete
-    Backend-->>Frontend: Done event
-    Frontend->>Frontend: Save conversation
-```
-
-### Smart Router Logic
-
-```mermaid
-flowchart LR
-    A[User Prompt] --> B{Contains Code?}
-    B -->|Yes| C[Coding Model]
-    B -->|No| D{Reasoning Keywords?}
-    D -->|Yes| E[Reasoning Model]
-    D -->|No| F{Length > 500?}
-    F -->|Yes| G[Reasoning Model]
-    F -->|No| H[General Model]
-    
-    C --> I[qwen2.5-coder]
-    E --> J[llama3.2]
-    H --> K[qwen:4b]
-    
-    style A fill:#667eea,stroke:#764ba2,stroke-width:2px,color:#fff
-    style C fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
-    style E fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
-    style H fill:#6366f1,stroke:#4f46e5,stroke-width:2px,color:#fff
-```
-
----
-
-## 📊 Component Architecture
-
-```mermaid
-graph TD
-    subgraph "React Components"
-        A[App.jsx - Main Container]
-        B[Sidebar.jsx]
-        C[ChatWindow.jsx]
-        D[MessageBubble.jsx]
-        E[SettingsPanel.jsx]
-        F[ModelManagement.jsx]
-        
-        A --> B
-        A --> C
-        A --> E
-        A --> F
-        C --> D
-    end
-    
-    subgraph "State Management"
-        G[Conversations State]
-        H[Settings State]
-        I[Models State]
-        J[Ollama Status]
-    end
-    
-    subgraph "Backend Modules"
-        K[main.py - FastAPI App]
-        L[router.py - Smart Router]
-        M[ollama_client.py - API Client]
-    end
-    
-    A --> G
-    A --> H
-    A --> I
-    A --> J
-    
-    C -.HTTP.-> K
-    K --> L
-    K --> M
-    
-    style A fill:#667eea,stroke:#764ba2,stroke-width:3px,color:#fff
-    style K fill:#4f46e5,stroke:#6366f1,stroke-width:3px,color:#fff
-```
-
----
-
-## 🛠️ Tech Stack
-
-<div align="center">
-
-### Frontend Stack
-
-| Technology | Purpose | Version |
-|-----------|---------|---------|
-| ⚛️ **React** | UI Framework | 18.2 |
-| ⚡ **Vite** | Build Tool | 5.0 |
-| 🎨 **Tailwind CSS** | Styling | 3.4 |
-| 📝 **React Markdown** | Message Rendering | 9.0 |
-| 🎯 **Lucide React** | Icons | 0.309 |
-| 🎨 **Syntax Highlighter** | Code Display | 15.5 |
-
-### Backend Stack
-
-| Technology | Purpose | Version |
-|-----------|---------|---------|
-| 🚀 **FastAPI** | Web Framework | 0.115 |
-| 🔷 **Pydantic** | Data Validation | 2.9 |
-| 🌐 **HTTPX** | HTTP Client | 0.27 |
-| ⚡ **Uvicorn** | ASGI Server | 0.32 |
-
-### AI/ML Stack
-
-| Technology | Purpose |
-|-----------|---------|
-| 🤖 **Ollama** | LLM Runtime |
-| 🧠 **qwen:4b** | General Purpose Model |
-| 💻 **llama3.2** | Reasoning Model |
-| 👨‍💻 **qwen2.5-coder** | Code Generation Model |
-
-</div>
-
----
-
-## 🎨 UI/UX Features
-
-### Design System
-
-```mermaid
-mindmap
-  root((LocalGPT Design))
-    Colors
-      Indigo Primary
-      Purple Accent
-      Slate Background
-      Emerald Success
-    Typography
-      Inter Font
-      Multiple Weights
-      Responsive Sizes
-    Effects
-      Glass Morphism
-      Gradient Overlays
-      Smooth Animations
-      Shadow Depths
-    Components
-      Rounded Corners
-      Backdrop Blur
-      Border Gradients
-      Hover States
-```
-
-### Key UI Elements
-
-- **🎨 Gradient Backgrounds**: Beautiful purple/indigo color schemes
-- **✨ Glass Morphism**: Frosted glass effects with backdrop blur
-- **🌊 Smooth Animations**: Fade-in, slide-in, and scale transitions
-- **💫 Smart Scrolling**: Auto-scroll with smooth/instant modes
-- **🎯 Status Indicators**: Animated connection status badges
-- **📱 Responsive Layout**: Adapts to different screen sizes
-
----
-
-## � Installation
-
-### Prerequisites
-
-- **Python 3.12** (required)
-- **Node.js 18+** and npm
-- **Ollama** installed and running
-
-### Step 1: Install Ollama
+Clone the repository:
 
 ```bash
-# macOS
-brew install ollama
-
-# Start Ollama service
-ollama serve
-
-# Pull models (in a new terminal)
-ollama pull qwen:4b
-ollama pull llama3.2
-ollama pull qwen2.5-coder
-```
-
-### Step 2: Setup Backend
-
-```bash
-# Navigate to project
+git clone https://github.com/RitulK/LocalGPT.git
 cd LocalGPT
-
-# Create virtual environment
-python3.12 -m venv backend/venv
-
-# Activate virtual environment
-source backend/venv/bin/activate  # macOS/Linux
-# or
-backend\venv\Scripts\activate     # Windows
-
-# Install dependencies
-cd backend
-pip install -r requirements.txt
 ```
 
-### Step 3: Setup Frontend
+Run the setup script:
 
 ```bash
-# Navigate to frontend
-cd ../frontend
-
-# Install dependencies
-npm install
-```
-
----
-
-## 🎮 Usage
-
-### Quick Start
-
-#### Option 1: Automated Scripts (Recommended)
-
-```bash
-# Make scripts executable
-chmod +x *.sh
-
-# Setup everything
+chmod +x setup.sh
 ./setup.sh
+```
 
-# Start both servers
+Start Ollama if it is not already running:
+
+```bash
+ollama serve
+```
+
+Pull at least one model:
+
+```bash
+ollama pull llama3.2
+```
+
+Start BuddyAI:
+
+```bash
 ./start.sh
 ```
 
-#### Option 2: Manual Start
+Open:
 
-**Terminal 1 - Backend:**
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8000`
+- API documentation: `http://localhost:8000/docs`
+
+Press `Ctrl+C` to stop the services started by `start.sh`.
+
+## Manual setup
+
+Backend:
+
 ```bash
 cd backend
+python3.12 -m venv venv
 source venv/bin/activate
+pip install -r requirements.txt
 python main.py
 ```
 
-**Terminal 2 - Frontend:**
+Frontend:
+
 ```bash
 cd frontend
+npm install
 npm run dev
 ```
 
-### Access the Application
+## Configuration
 
-1. **Frontend**: Open [http://localhost:5173](http://localhost:5173) or [http://localhost:5174](http://localhost:5174)
-2. **Backend API**: [http://localhost:8000](http://localhost:8000)
-3. **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+The main application settings are available in the BuddyAI Settings panel.
 
----
+Optional backend environment variables can be placed in `backend/.env`, for
+example:
 
-## 🎯 API Endpoints
-
-```mermaid
-graph LR
-    A[API Routes] --> B[GET /]
-    A --> C[POST /chat]
-    A --> D[GET /models]
-    A --> E[GET /settings]
-    A --> F[POST /settings]
-    
-    B --> B1[Health check]
-    C --> C1[Stream chat response]
-    D --> D1[List available models]
-    E --> E1[Get current settings]
-    F --> F1[Update settings]
-    
-    style A fill:#667eea,stroke:#764ba2,stroke-width:2px,color:#fff
-    style C fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+```dotenv
+TINYFISH_API_KEY=your_key
+TINYFISH_BASE_URL=https://agent.tinyfish.ai/v1/automation
+OLLAMA_CLOUD_MODELS_ENABLED=true
 ```
 
-### Endpoint Details
+Do not commit API keys or credentials.
 
-| Method | Endpoint | Description | Response |
-|--------|----------|-------------|----------|
-| `GET` | `/` | Health check | JSON status |
-| `POST` | `/chat` | Stream chat responses | SSE stream |
-| `GET` | `/models` | List Ollama models | JSON array |
-| `GET` | `/settings` | Get user settings | JSON object |
-| `POST` | `/settings` | Update settings | JSON object |
-| `GET` | `/docs` | API documentation | Swagger UI |
+For Docker deployment, see:
 
----
+- [Docker setup](docs/deployment/docker.md)
+- [Configuration guide](docs/getting-started/configuration.md)
+- [Troubleshooting](docs/reference/troubleshooting.md)
 
-## 📁 Project Structure
+## Obsidian setup
 
-```
-LocalGPT/
-├── 📂 backend/
-│   ├── 📂 venv/                # Python virtual environment
-│   ├── 📄 main.py              # FastAPI application (279 lines)
-│   ├── 📄 router.py            # Smart model router (160 lines)
-│   ├── 📄 ollama_client.py     # Ollama API client (142 lines)
-│   └── 📄 requirements.txt     # Python dependencies
-│
-├── 📂 frontend/
-│   ├── 📂 src/
-│   │   ├── 📂 components/
-│   │   │   ├── App.jsx         # Main application
-│   │   │   ├── ChatWindow.jsx  # Chat interface
-│   │   │   ├── MessageBubble.jsx
-│   │   │   ├── Sidebar.jsx
-│   │   │   ├── SettingsPanel.jsx
-│   │   │   └── ModelManagement.jsx
-│   │   ├── 📄 main.jsx         # React entry point
-│   │   └── 📄 index.css        # Global styles
-│   ├── 📄 package.json
-│   ├── 📄 vite.config.js
-│   └── 📄 tailwind.config.js
-│
-├── 📂 docs/                    # Documentation
-│   ├── QUICKSTART.md
-│   ├── ARCHITECTURE.md
-│   ├── CONFIGURATION.md
-│   └── TROUBLESHOOTING.md
-│
-├── 📄 setup.sh                 # Automated setup script
-├── 📄 start.sh                 # Start servers script
-└── 📄 README.md                # You are here!
+1. Install and enable **Local REST API with MCP** in Obsidian.
+2. Open the plugin settings and copy its API key.
+3. Open BuddyAI **Settings → Obsidian**.
+4. Set the API address to `https://127.0.0.1:27124`.
+5. Enter the API key.
+6. Configure certificate verification and the allowed write folder.
+7. Test and save the connection.
+
+For a secure HTTPS setup, download the plugin certificate authority from:
+
+```text
+https://127.0.0.1:27124/obsidian-local-rest-api.crt
 ```
 
----
+Keep delete permission disabled until deletion is explicitly needed.
 
-## 🔍 Smart Router Patterns
+## Development
 
-The intelligent router analyzes your prompts and selects the optimal model:
-
-| Pattern | Model Selected | Example Prompts |
-|---------|----------------|-----------------|
-| 🔧 Code blocks with \`\`\` | **Coding Model** | "Write a Python function..." |
-| 💭 Reasoning keywords | **Reasoning Model** | "Explain why...", "Analyze..." |
-| 📏 Long prompts (>500 chars) | **Reasoning Model** | Complex multi-part questions |
-| 💬 General queries | **General Model** | "What is...", "How to..." |
-
-### Router Keywords
-
-**Coding triggers**: `code`, `function`, `class`, `algorithm`, `debug`, `implement`
-
-**Reasoning triggers**: `why`, `explain`, `analyze`, `compare`, `evaluate`, `reasoning`
-
----
-
-## � Performance
-
-```mermaid
-graph LR
-    A[User Input] -->|<50ms| B[Frontend]
-    B -->|<100ms| C[Backend]
-    C -->|<200ms| D[Ollama]
-    D -->|Streaming| E[First Token]
-    E -->|1-10 tokens/s| F[Full Response]
-    
-    style E fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
-    style F fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
-```
-
-- **First token latency**: ~200-400ms
-- **Streaming speed**: 1-10 tokens/second (model dependent)
-- **UI responsiveness**: 60 FPS animations
-- **Memory usage**: ~2-4GB (model dependent)
-
----
-
-## 🐛 Troubleshooting
-
-<details>
-<summary><b>⚠️ Port already in use</b></summary>
+Backend:
 
 ```bash
-# Kill process on port 8000
-lsof -ti:8000 | xargs kill -9
-
-# Kill process on port 5173
-lsof -ti:5173 | xargs kill -9
+backend/venv/bin/python -m compileall -q backend
+backend/venv/bin/python -m unittest discover -s backend -p 'test_*.py'
 ```
-</details>
 
-<details>
-<summary><b>⚠️ Ollama not running</b></summary>
+Frontend:
 
 ```bash
-# Start Ollama
-ollama serve
-
-# Verify it's running
-curl http://localhost:11434/api/tags
-```
-</details>
-
-<details>
-<summary><b>⚠️ No models found</b></summary>
-
-```bash
-# Pull recommended models
-ollama pull qwen:4b
-ollama pull llama3.2
-ollama pull qwen2.5-coder
-
-# Verify models
-ollama list
-```
-</details>
-
-<details>
-<summary><b>⚠️ CORS errors</b></summary>
-
-Make sure backend `main.py` includes your frontend port in allowed origins:
-
-```python
-allow_origins=["http://localhost:5173", "http://localhost:5174"]
-```
-</details>
-
-<details>
-<summary><b>⚠️ Python version issues</b></summary>
-
-Use Python 3.12:
-
-```bash
-# Install Python 3.12
-brew install python@3.12
-
-# Create venv with specific version
-python3.12 -m venv backend/venv
-```
-</details>
-
----
-
-## ⚙️ Configuration
-
-### Backend Settings
-
-Located in `backend/main.py`:
-
-```python
-# Default models for router
-default_general_model = "qwen:4b"
-default_coding_model = "qwen2.5-coder"
-default_reasoning_model = "llama3.2"
-
-# Server configuration
-host = "0.0.0.0"
-port = 8000
+cd frontend
+npm run build
+npm run dev
 ```
 
-### Frontend Settings
+Repository workflow and architecture notes:
 
-Located in `frontend/src/App.jsx`:
+- [Repository guide](repo.md)
+- [Project status](project.md)
+- [Documentation index](docs/README.md)
+- [Development backlog](BACKLOG.md)
+- [Changelog](changelog.md)
 
-```javascript
-// Initial settings
-settings: {
-  default_general_model: "qwen:4b",
-  default_coding_model: "qwen2.5-coder",
-  default_reasoning_model: "llama3.2",
-  enable_router: true
-}
+## Forking and contributing
+
+1. Fork the repository on GitHub.
+2. Create a feature branch from the current default branch.
+3. Keep changes focused and add tests for new behavior.
+4. Run the backend tests and frontend build before opening a pull request.
+5. Update the relevant documentation and changelog for user-facing changes.
+6. Open a pull request describing the problem, solution, and verification.
+
+Before changing implementation, read [repo.md](repo.md) and
+[BACKLOG.md](BACKLOG.md).
+
+## Project structure
+
+```text
+backend/
+  app/api/            FastAPI route handlers
+  app/services/       Application business logic
+  app/domain/         Schemas and domain events
+  app/infrastructure/ Providers, repositories, and integrations
+
+frontend/
+  src/components/     React chat, settings, and feature components
+  src/App.jsx         Application state and navigation
+
+docs/                 Integration and deployment documentation
+tests/                Playwright end-to-end tests
 ```
 
----
+## Documentation
 
-## 🤝 Contributing
-
-Contributions are welcome! Here's how you can help:
-
-1. 🍴 Fork the repository
-2. 🌿 Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. 💾 Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. 📤 Push to the branch (`git push origin feature/AmazingFeature`)
-5. 🎉 Open a Pull Request
-
----
-
-## 🔮 Future Enhancements
-
-- [ ] Multi-model comparison (side-by-side responses)
-- [ ] Persistent conversation storage (database)
-- [ ] Export conversations to markdown/PDF
-- [ ] Voice input/output
-- [ ] Model performance analytics
-- [ ] Custom system prompts
-- [ ] API key for external access
-- [ ] Docker containerization
-- [ ] RAG (Retrieval Augmented Generation) support
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- **Ollama Team** - For the amazing local LLM runtime
-- **FastAPI** - For the brilliant Python web framework
-- **React Team** - For the powerful UI library
-- **Tailwind CSS** - For the utility-first CSS framework
-- **Lucide Icons** - For beautiful open-source icons
-
----
-
-## 📞 Support
-
-Having issues? Check out:
-
-- 📖 [Documentation](docs/)
-- 🐛 [Issue Tracker](https://github.com/yourusername/LocalGPT/issues)
-- 💬 [Discussions](https://github.com/yourusername/LocalGPT/discussions)
-
----
-
-<div align="center">
-
-### 🌟 Star this repo if you find it helpful!
-
-Made with ❤️ by the LocalGPT Team
-
-![Footer](https://via.placeholder.com/800x100/0a0e17/667eea?text=LocalGPT+Control+Center+-+Your+AI,+Your+Machine,+Your+Privacy)
-
-</div>
+- [Getting started](docs/getting-started/quickstart.md)
+- [Configuration](docs/getting-started/configuration.md)
+- [Obsidian integration](docs/integrations/obsidian.md)
+- [Architecture overview](docs/overview/architecture.md)
+- [Troubleshooting](docs/reference/troubleshooting.md)
