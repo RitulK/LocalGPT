@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Copy, Check, User, Bot, ExternalLink } from 'lucide-react';
+import { Copy, Check, User, Bot, ExternalLink, BookOpen } from 'lucide-react';
 
 const normalizeMarkdownTables = (content) => (
   content
@@ -11,8 +11,9 @@ const normalizeMarkdownTables = (content) => (
     .replace(/(\|[^\n|]+(?:\|[^\n|]+)+\|?)\s+(\|?\s*:?-{3,}:?\s*\|)/g, '$1\n$2')
 );
 
-export default function MessageBubble({ message, apiUrl }) {
+export default function MessageBubble({ message, apiUrl, onReadObsidianNote }) {
   const [copied, setCopied] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -21,14 +22,26 @@ export default function MessageBubble({ message, apiUrl }) {
   };
 
   const isUser = message.role === 'user';
-  const openInObsidian = async () => {
-    if (!message.obsidianOpenPath) return;
-    await fetch(`${apiUrl}/obsidian/execute`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'open', path: message.obsidianOpenPath })
-    });
+  const openInObsidian = async (path) => {
+    try {
+      const response = await fetch(`${apiUrl}/obsidian/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'open', path })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || 'Could not open in Obsidian');
+      setActionError('');
+    } catch (error) {
+      setActionError(error.message);
+    }
   };
+  const searchResults = (message.obsidianSearchResults || []).map((result) => ({
+    path: typeof result === 'string' ? result : result.filename || result.path,
+    excerpt: typeof result === 'object'
+      ? result.matches?.[0]?.context || result.snippet || ''
+      : ''
+  })).filter((result) => result.path);
 
   return (
     <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} group animate-in fade-in slide-in-from-bottom-4 duration-500`}>
@@ -137,13 +150,43 @@ export default function MessageBubble({ message, apiUrl }) {
 
         {!isUser && message.obsidianOpenPath && !message.isStreaming && (
           <button
-            onClick={openInObsidian}
+            onClick={() => openInObsidian(message.obsidianOpenPath)}
             className="mt-2 inline-flex items-center gap-2 rounded-lg border border-[#28ead8]/20 bg-[#20dcca]/8 px-2.5 py-1.5 text-[10px] font-semibold text-[#8ffcf0]"
           >
             <ExternalLink className="h-3 w-3" />
             Open in Obsidian
           </button>
         )}
+
+        {!isUser && searchResults.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {searchResults.map((result, index) => (
+              <div key={`${result.path}-${index}`} className="rounded-xl border border-white/[0.08] bg-[#0b1716] p-3">
+                <div className="break-all text-xs font-semibold text-[#dce9e5]">{result.path}</div>
+                {result.excerpt && <p className="mt-1 line-clamp-3 text-xs leading-5 text-[#91a49f]">{result.excerpt}</p>}
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onReadObsidianNote?.(result.path)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#28ead8]/20 px-2.5 py-1.5 text-[10px] font-semibold text-[#8ffcf0]"
+                  >
+                    <BookOpen className="h-3 w-3" />
+                    Read in chat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openInObsidian(result.path)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[10px] text-[#b9c9c5]"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    Open in Obsidian
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {actionError && <p className="mt-2 text-xs text-rose-300">{actionError}</p>}
 
         {/* Timestamp */}
         <div className="text-[10px] text-[#536560] mt-1">

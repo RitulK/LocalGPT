@@ -69,6 +69,15 @@ class ObsidianProposalRequest(BaseModel):
     conversation_history: Optional[List[dict]] = None
 
 
+class ObsidianProposalConfirmation(BaseModel):
+    proposal_id: str
+    content: Optional[str] = None
+
+
+class ObsidianProposalCancellation(BaseModel):
+    proposal_id: str
+
+
 class ConversationCreate(BaseModel):
     title: str = "New Chat"
 

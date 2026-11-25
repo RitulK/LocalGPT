@@ -50,6 +50,13 @@ in [`BACKLOG.md`](BACKLOG.md).
 
 ## Feature Updates
 
+- **2026-11-25 — Obsidian security audit:** Restricted Obsidian routes and
+  Obsidian-setting updates to loopback clients/local origins, prevented
+  connection-test API-key forwarding to non-loopback hosts, and made write
+  confirmation depend on expiring, one-time server-issued proposal IDs.
+  Malformed model proposal output is rejected. See
+  [`docs/integrations/obsidian.md`](docs/integrations/obsidian.md) and
+  [`changelog.md`](changelog.md).
 - **2026-09-11 — P1-S1:** Added `backend/app/{api,services,domain,infrastructure,core}`,
   moved HTTP routes into routers, and reduced `backend/main.py` to an app
   factory and lifecycle wiring.

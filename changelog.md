@@ -2,6 +2,23 @@
 
 All notable repository changes are recorded here, newest first.
 
+## 2026-11-25
+
+### Obsidian security and reliability audit
+
+- Restricted Obsidian API routes and Obsidian-setting changes to loopback
+  clients and local browser origins.
+- Restricted connection tests to loopback URLs and prevented saved API-key
+  forwarding to a caller-supplied host.
+- Replaced client-submitted write actions with expiring, one-time server-issued
+  proposal IDs; direct write execution is rejected.
+- Rejected malformed model proposal JSON shapes and added a regression test.
+- Documented the local-only access boundary and proposal lifecycle in
+  `docs/integrations/obsidian.md`.
+- Validation: 57 backend tests passed, the frontend production build passed,
+  all 15 Playwright tests passed across Chromium, Firefox, and WebKit, and
+  `git diff --check` passed.
+
 ## 2026-11-24
 
 ### Chat-first Obsidian integration

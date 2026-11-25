@@ -131,8 +131,10 @@ Primary endpoints:
 | `POST /obsidian/execute` | Execute approved existing UI operations |
 
 The `/plan` and `/execute` helpers remain for compatibility with the earlier
-implementation. The chat-first UI uses `/generate-proposal` and
-`/proposals/confirm`.
+implementation. `/execute` now permits only search/open actions; writes require
+a one-time proposal id issued by `/generate-proposal`. Proposal ids expire after
+10 minutes, can be cancelled, and cannot be reused. The chat-first UI uses
+`/generate-proposal` and `/proposals/confirm`.
 
 ## Frontend
 
@@ -183,6 +185,13 @@ https://127.0.0.1:27124/obsidian-local-rest-api.crt
 - Delete requires separate permission and confirmation
 - The plugin should remain on the local machine unless remote access is
   deliberately and securely configured
+- Obsidian API routes accept only loopback clients and local browser origins.
+  Obsidian settings can only be changed by a local client. This protects the
+  server-held API key and vault actions when BuddyAI's backend is reachable on a
+  network.
+- Connection tests accept loopback Obsidian addresses only. To test a different
+  loopback address, provide its API key explicitly; the saved API key is not
+  forwarded to a request-supplied host.
 
 ## Validation
 

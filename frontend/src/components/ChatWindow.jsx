@@ -104,6 +104,22 @@ export default function ChatWindow({
     }
   }, [input]);
 
+  const readObsidianNote = async (path, addChatMessage = true) => {
+    const encodedPath = encodeURIComponent(path).replace(/%2F/g, '/');
+    const response = await fetch(`${apiUrl}/obsidian/notes/${encodedPath}`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Could not read the note');
+    if (addChatMessage) {
+      onAddMessage(conversation.id, {
+        role: 'assistant',
+        content: `# ${data.path}\n\n${data.content}`,
+        obsidianOpenPath: data.path,
+        timestamp: new Date()
+      });
+    }
+    return data;
+  };
+
   const submitPrompt = async (prompt) => {
     if (!prompt.trim() || isStreaming || !conversation) return;
 
@@ -154,6 +170,7 @@ export default function ChatWindow({
             : 'No matching notes found.';
           onUpdateLastMessage(conversation.id, {
             content: `## Obsidian search results\n\n${markdown}`,
+            obsidianSearchResults: results,
             isStreaming: false
           });
           setObsidianTool(null);
@@ -162,13 +179,12 @@ export default function ChatWindow({
         }
 
         if (obsidianTool === 'read') {
-          if (!obsidianTarget.trim()) throw new Error('Enter a note path for the Read/open tool.');
-          const response = await fetch(`${apiUrl}/obsidian/notes/${encodeURIComponent(obsidianTarget.trim()).replace(/%2F/g, '/')}`);
-          const data = await response.json();
-          if (!response.ok) throw new Error(data.detail || 'Could not read the note');
+          const path = obsidianTarget.trim();
+          if (!path) throw new Error('Enter a note path for the Read/open tool.');
+          const note = await readObsidianNote(path, false);
           onUpdateLastMessage(conversation.id, {
-            content: `# ${obsidianTarget.trim()}\n\n${data.content}`,
-            obsidianOpenPath: data.path,
+            content: `# ${note.path}\n\n${note.content}`,
+            obsidianOpenPath: note.path,
             isStreaming: false
           });
           setObsidianTool(null);
@@ -190,7 +206,10 @@ export default function ChatWindow({
         });
         const generationData = await generationResponse.json();
         if (!generationResponse.ok) throw new Error(generationData.detail || 'Could not generate an Obsidian proposal');
-        setObsidianDraft(generationData.proposal);
+        setObsidianDraft({
+          ...generationData.proposal,
+          proposal_id: generationData.proposal_id
+        });
         onUpdateLastMessage(conversation.id, {
           content: `Prepared an Obsidian ${generationData.proposal.action} proposal for review below.`,
           isStreaming: false
@@ -272,10 +291,13 @@ export default function ChatWindow({
         handleStreamEvent(sseBuffer);
       }
     } catch (err) {
-      console.error('Chat error:', err);
-      setError('Failed to get response. Make sure Ollama is running and the selected model is installed.');
+      console.error(obsidianTool ? 'Obsidian action error:' : 'Chat error:', err);
+      const errorMessage = obsidianTool
+        ? err.message
+        : 'Failed to get response. Make sure Ollama is running and the selected model is installed.';
+      setError(errorMessage);
       onUpdateLastMessage(conversation.id, {
-        content: 'Error: Failed to get response. Please check Ollama and your selected model.',
+        content: `Error: ${errorMessage}`,
         isStreaming: false,
         error: true
       });
@@ -304,7 +326,10 @@ export default function ChatWindow({
       const response = await fetch(`${apiUrl}/obsidian/proposals/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(obsidianDraft)
+        body: JSON.stringify({
+          proposal_id: obsidianDraft.proposal_id,
+          content: obsidianDraft.content
+        })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Obsidian action failed');
@@ -323,6 +348,21 @@ export default function ChatWindow({
     } finally {
       setObsidianBusy(false);
     }
+  };
+
+  const cancelObsidianDraft = async () => {
+    if (obsidianDraft?.proposal_id) {
+      try {
+        await fetch(`${apiUrl}/obsidian/proposals/cancel`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ proposal_id: obsidianDraft.proposal_id })
+        });
+      } catch (cancelError) {
+        console.error('Failed to cancel Obsidian proposal:', cancelError);
+      }
+    }
+    setObsidianDraft(null);
   };
 
   if (!conversation) {
@@ -454,7 +494,7 @@ export default function ChatWindow({
                 draft={obsidianDraft}
                 onChangeDraft={setObsidianDraft}
                 onConfirm={confirmObsidianDraft}
-                onCancel={() => setObsidianDraft(null)}
+                onCancel={cancelObsidianDraft}
                 busy={obsidianBusy}
               />
             )}
@@ -473,6 +513,9 @@ export default function ChatWindow({
                 key={`${conversation.id}-${index}-${message.timestamp?.getTime() || index}`}
                 message={message}
                 apiUrl={apiUrl}
+                onReadObsidianNote={(path) => {
+                  readObsidianNote(path).catch((readError) => setError(readError.message));
+                }}
               />
             ))}
           </div>
@@ -557,7 +600,7 @@ export default function ChatWindow({
                 draft={obsidianDraft}
                 onChangeDraft={setObsidianDraft}
                 onConfirm={confirmObsidianDraft}
-                onCancel={() => setObsidianDraft(null)}
+                onCancel={cancelObsidianDraft}
                 busy={obsidianBusy}
               />
             )}
